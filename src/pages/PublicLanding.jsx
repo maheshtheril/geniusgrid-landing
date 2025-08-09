@@ -81,74 +81,132 @@ function PriceCard({ name, m, y, features, billing, highlight = false }) {
 
 function AppCard({ app, onStartFree, selectable, selected, onToggle }) {
   const [busy, setBusy] = useState(false);
+
   return (
-    <div className="panel p-4 card-animated reveal">
-      <div className="flex items-start gap-3">
-        <div className="h-12 w-12 rounded-xl flex items-center justify-center text-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-          {app.icon || "🧩"}
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold">{app.name || "Untitled"}</h3>
-            {app.paid ? <span className="badge-purple">Paid</span> : <span className="badge-muted">Free</span>}
+    <article
+      className="
+        group relative rounded-2xl border border-slate-200/70 dark:border-slate-700/60
+        bg-white/80 dark:bg-slate-900/70
+        shadow-sm hover:shadow-lg transition-all duration-300
+        hover:-translate-y-0.5
+        overflow-hidden
+      "
+      aria-label={`${app.name || "App"} card`}
+    >
+      {/* subtle gradient sheen */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(1200px_600px_at_0%_-10%,rgba(99,102,241,0.06),transparent)] dark:bg-[radial-gradient(1200px_600px_at_0%_-10%,rgba(34,211,238,0.08),transparent)]" />
+
+      <div className="p-4 sm:p-5">
+        {/* header row */}
+        <div className="flex items-start gap-3">
+          {/* icon */}
+          <div
+            className="
+              h-12 w-12 rounded-xl grid place-items-center text-2xl
+              bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900
+              border border-slate-200 dark:border-slate-700
+              shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]
+              group-hover:shadow-md transition-shadow
+            "
+            aria-hidden
+          >
+            {app.icon || "🧩"}
           </div>
-          {app.desc ? (
-            <p className="text-sm text-slate-600 dark:text-slate-300/90 mt-0.5">{app.desc}</p>
-          ) : null}
-          <div className="flex flex-wrap gap-2 mt-2">
-            {(app.tags || []).map((t) => (
-              <span key={t} className="badge-muted">
-                {t}
+
+          {/* title + badge */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base sm:text-lg font-semibold tracking-tight truncate">
+                {app.name || "Untitled"}
+              </h3>
+              <span
+                className={`
+                  inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium
+                  ${app.paid
+                    ? "bg-purple-50 text-purple-700 border border-purple-100 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-400/20"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-400/20"}
+                `}
+              >
+                {app.paid ? "Paid" : "Free"}
               </span>
-            ))}
+            </div>
+
+            {/* subtitle/desc (one line) */}
+            {app.desc && (
+              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300/90 line-clamp-1">
+                {app.desc}
+              </p>
+            )}
+
+            {/* tags (one-line wrap, trimmed) */}
+            {!!(app.tags && app.tags.length) && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {app.tags.slice(0, 4).map((t) => (
+                  <span
+                    key={t}
+                    className="px-2 py-0.5 rounded-lg text-[11px] border border-slate-200 text-slate-600 bg-white/70
+                               dark:border-slate-700 dark:text-slate-300 dark:bg-slate-900/70"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="mt-4 flex items-center gap-2">
-        <a href="#learn-more" className="btn-ghost">
-          Learn more
-        </a>
-        <button
-          type="button"
-          onClick={() => {
-            setBusy(true);
-            setTimeout(() => setBusy(false), 800);
-          }}
-          className="btn-ghost"
-          disabled={busy}
-          aria-disabled={busy}
-          aria-busy={busy}
-        >
-          {busy ? "Launching…" : "Try demo"}
-        </button>
-
-        {selectable && (
+        {/* footer actions */}
+        <div className="mt-4 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => onToggle?.(app.id)}
-            className={`btn-ghost ${selected ? "ring-2 ring-slate-200 dark:ring-cyan-300/40" : ""}`}
-            aria-pressed={selected}
-            title={selected ? "Remove from selection" : "Add to selection"}
+            className="btn-ghost"
+            onClick={() => window.alert('More details soon')}
           >
-            {selected ? "✓ Selected" : "Add"}
+            Learn more
           </button>
-        )}
 
-        <button
-          type="button"
-          onClick={() => {
-            track("start_free_module", { module: app.id });
-            onStartFree?.([app.id]);
-          }}
-          className="btn-primary btn-shine"
-        >
-          Start free
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setBusy(true);
+              setTimeout(() => setBusy(false), 700);
+            }}
+            className="btn-ghost"
+            disabled={busy}
+            aria-busy={busy}
+          >
+            {busy ? "Launching…" : "Try demo"}
+          </button>
 
-        <div className="ml-auto text-xs text-slate-500 dark:text-slate-400">v{app.version || "1.0.0"}</div>
+          {selectable && (
+            <button
+              type="button"
+              onClick={() => onToggle?.(app.id)}
+              className={`btn-ghost ${selected ? "ring-2 ring-slate-200 dark:ring-cyan-300/40" : ""}`}
+              aria-pressed={selected}
+              title={selected ? "Remove from selection" : "Add to selection"}
+            >
+              {selected ? "✓ Selected" : "Add"}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => onStartFree?.([app.id])}
+            className="
+              ml-auto btn-primary btn-shine
+              shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-cyan-300/50
+            "
+          >
+            Start free
+          </button>
+
+          <div className="ml-2 text-[11px] text-slate-500 dark:text-slate-400">
+            v{app.version || "1.0.0"}
+          </div>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }
 
