@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
+/* --- atoms --- */
 function LogoMark({ className = "" }) {
   return (
     <svg width="28" height="28" viewBox="0 0 24 24" className={className}>
@@ -80,10 +81,26 @@ function FAQItem({ q, a }) {
   );
 }
 
+/* --- page --- */
 export default function GeniusGridLanding() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [pricingPlan, setPricingPlan] = useState("monthly");
+
+  // NEW: modules from DB + selection (keeps your styling)
+  const [modules, setModules] = useState([]);
+  const [selected, setSelected] = useState(new Set());
+
+  useEffect(() => {
+    // Public endpoint on your backend — no creds needed from landing
+    fetch("https://geniusgrid-auth-starter.onrender.com/api/public/modules", { credentials: "omit" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setModules(data);
+        else setModules([]);
+      })
+      .catch(() => setModules([]));
+  }, []);
 
   const featureList = useMemo(
     () => [
@@ -104,8 +121,6 @@ export default function GeniusGridLanding() {
     { q: "Free trial?", a: "Starter has a free trial; yearly plans include ~2 months free." },
   ];
 
-  const logos = ["Asteria", "NovaTech", "BluePeak", "Zenlytics", "Quanta", "Skylark"];
-
   function onSubmit(e) {
     e.preventDefault();
     if (!/^\S+@\S+\.\S+$/.test(email)) {
@@ -116,14 +131,30 @@ export default function GeniusGridLanding() {
     setEmail("");
   }
 
+  function toggleModule(code) {
+    const next = new Set(selected);
+    next.has(code) ? next.delete(code) : next.add(code);
+    setSelected(next);
+  }
+
+  function startTrial(plan = "free") {
+    const mods = encodeURIComponent(Array.from(selected).join(","));
+    // Backend creates a short-lived pre-signup code and 302 redirects to the app’s /signup
+    window.location.href = `https://geniusgrid-auth-starter.onrender.com/api/public/start-signup?modules=${mods}&plan=${encodeURIComponent(
+      plan
+    )}`;
+  }
+
   return (
     <div className="relative overflow-x-hidden">
       {/* Soft radial background */}
-      <div className="pointer-events-none absolute -inset-x-1 -top-40 h-[60vh] blur-3xl opacity-60"
-           style={{
-             background:
-               "radial-gradient(700px 700px at 30% 10%, rgba(139,92,246,.35), transparent 60%), radial-gradient(600px 600px at 70% 0%, rgba(110,231,249,.25), transparent 60%)",
-           }} />
+      <div
+        className="pointer-events-none absolute -inset-x-1 -top-40 h-[60vh] blur-3xl opacity-60"
+        style={{
+          background:
+            "radial-gradient(700px 700px at 30% 10%, rgba(139,92,246,.35), transparent 60%), radial-gradient(600px 600px at 70% 0%, rgba(110,231,249,.25), transparent 60%)",
+        }}
+      />
 
       {/* NAV */}
       <header className="sticky top-0 z-20 glass h-16 flex items-center justify-between px-5">
@@ -135,33 +166,42 @@ export default function GeniusGridLanding() {
         <nav className={`hidden md:flex items-center gap-5`}>
           <a href="#features">Features</a>
           <a href="#product">Product</a>
+          <a href="#modules">Modules</a>
           <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
-          <a href="#contact" className="btn ghost px-3 py-2 rounded-lg glass">Contact</a>
+          <a href="#contact" className="btn ghost px-3 py-2 rounded-lg glass">
+            Contact
+          </a>
         </nav>
 
-        <button
-          className="md:hidden text-xl"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
+        <button className="md:hidden text-xl" onClick={() => setMenuOpen((v) => !v)} aria-label="Toggle menu">
           ☰
         </button>
 
-        {/* mobile menu */}
-        {menuOpen && (
-          <div className="absolute left-0 right-0 top-16 md:hidden glass p-4 border-t border-border">
-            <div className="grid gap-3">
-              <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
-              <a href="#product" onClick={() => setMenuOpen(false)}>Product</a>
-              <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
-              <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
-              <a href="#contact" onClick={() => setMenuOpen(false)} className="px-3 py-2 rounded-lg glass text-center">Contact</a>
-            </div>
-          </div>
-        )}
+      
       </header>
-
+{menuOpen && (
+  <>
+    {/* backdrop to dim & close on tap */}
+    <div
+      className="fixed inset-0 z-40 md:hidden bg-black/40"
+      onClick={() => setMenuOpen(false)}
+    />
+    {/* the actual menu */}
+    <div className="fixed inset-x-0 top-16 z-50 md:hidden glass p-4 border-t border-border">
+      <nav className="grid gap-3">
+        <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+        <a href="#product"  onClick={() => setMenuOpen(false)}>Product</a>
+        <a href="#modules"  onClick={() => setMenuOpen(false)}>Modules</a>
+        <a href="#pricing"  onClick={() => setMenuOpen(false)}>Pricing</a>
+        <a href="#faq"      onClick={() => setMenuOpen(false)}>FAQ</a>
+        <a href="#contact"  onClick={() => setMenuOpen(false)} className="px-3 py-2 rounded-lg glass text-center">
+          Contact
+        </a>
+      </nav>
+    </div>
+  </>
+)}
       <main>
         {/* HERO */}
         <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-8 items-center">
@@ -170,7 +210,8 @@ export default function GeniusGridLanding() {
               The AI-Powered SaaS ERP <br /> your team actually loves.
             </h1>
             <p className="text-muted mt-3">
-              GeniusGrid combines CRM, calls, deals, analytics, notifications, and RBAC into a blazing-fast, AI-first workspace.
+              GeniusGrid combines CRM, calls, deals, analytics, notifications, and RBAC into a blazing-fast, AI-first
+              workspace.
             </p>
 
             <form onSubmit={onSubmit} className="mt-4 flex gap-2">
@@ -209,8 +250,10 @@ export default function GeniusGridLanding() {
         {/* LOGOS */}
         <section className="border-y border-white/10 py-4">
           <div className="max-w-6xl mx-auto px-5 grid grid-flow-col auto-cols-max gap-10 overflow-x-auto no-scrollbar">
-            {["Asteria","NovaTech","BluePeak","Zenlytics","Quanta","Skylark"].map((n) => (
-              <div key={n} className="text-muted whitespace-nowrap">{n}</div>
+            {["Asteria", "NovaTech", "BluePeak", "Zenlytics", "Quanta", "Skylark"].map((n) => (
+              <div key={n} className="text-muted whitespace-nowrap">
+                {n}
+              </div>
             ))}
           </div>
         </section>
@@ -241,9 +284,11 @@ export default function GeniusGridLanding() {
               <div className="h-10 bg-[#191926] border-b border-border" />
               <div className="grid lg:grid-cols-[2fr_1fr] gap-4 p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {["New","Qualified","Won"].map((pill) => (
+                  {["New", "Qualified", "Won"].map((pill) => (
                     <div key={pill} className="grid gap-2">
-                      <div className="inline-block px-3 py-1 rounded-full border border-border text-muted text-xs">{pill}</div>
+                      <div className="inline-block px-3 py-1 rounded-full border border-border text-muted text-xs">
+                        {pill}
+                      </div>
                       <div className="h-16 rounded-lg border border-border bg-gradient-to-br from-[#181828] to-[#1a1a2b]" />
                       <div className="h-16 rounded-lg border border-border bg-gradient-to-br from-[#181828] to-[#1a1a2b]" />
                     </div>
@@ -255,6 +300,51 @@ export default function GeniusGridLanding() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* MODULES (from DB, selectable) */}
+        <section id="modules" className="max-w-6xl mx-auto px-5 pb-16">
+          <SectionTitle
+            eyebrow="Modules"
+            title="Pick what fits your team"
+            desc="Loaded live from the database. Your selection carries into signup."
+          />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {modules.length === 0 && <div className="text-muted">No modules found.</div>}
+            {modules.map((m) => {
+              const on = selected.has(m.code);
+              return (
+                <button
+                  key={m.code}
+                  onClick={() => toggleModule(m.code)}
+                  className={`glass rounded-xl p-4 shadow-lg text-left ${
+                    on ? "ring-2 ring-cyan-300/40" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold">{m.name}</div>
+                    <span className="text-xs text-muted uppercase">{m.category}</span>
+                  </div>
+                  <p className="text-muted mt-1">{m.description}</p>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex justify-center gap-3 mt-4">
+            <button
+              onClick={() => setSelected(new Set())}
+              className="rounded-lg px-4 py-2 glass"
+              aria-label="Clear selection"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => startTrial("free")}
+              className="rounded-lg px-4 py-2 font-semibold text-bg bg-gradient-to-br from-cyan-300 to-purple-500"
+            >
+              Start free trial{selected.size ? ` (${selected.size})` : ""}
+            </button>
           </div>
         </section>
 
@@ -339,8 +429,15 @@ export default function GeniusGridLanding() {
           <h2 className="text-3xl font-extrabold">Ready to see GeniusGrid in action?</h2>
           <p className="text-muted mt-1">Book a demo or start your free trial today.</p>
           <div className="flex gap-3 justify-center mt-3 flex-wrap">
-            <a href="#home" className="rounded-lg px-4 py-2 font-semibold text-bg bg-gradient-to-br from-cyan-300 to-purple-500">Start free trial</a>
-            <a href="mailto:hello@geniusinfravision.example" className="rounded-lg px-4 py-2 glass">Book a demo</a>
+            <button
+              onClick={() => startTrial("free")}
+              className="rounded-lg px-4 py-2 font-semibold text-bg bg-gradient-to-br from-cyan-300 to-purple-500"
+            >
+              Start free trial{selected.size ? ` (${selected.size})` : ""}
+            </button>
+            <a href="mailto:hello@geniusinfravision.example" className="rounded-lg px-4 py-2 glass">
+              Book a demo
+            </a>
           </div>
         </section>
       </main>
