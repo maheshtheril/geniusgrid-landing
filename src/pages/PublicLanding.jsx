@@ -7,10 +7,9 @@ import { useEffect, useMemo, useState, lazy, Suspense, useRef } from "react";
 
 /**
  * PublicLanding.jsx
- * World‑class, Odoo‑style module picker with checkbox selection,
- * sticky selection bar, and polished card visuals.
- * - Top bar “Start free” jumps straight to signup if any modules selected, else scrolls to #apps
- * - Card uses checkbox (not Add) + better aesthetic & micro‑interactions
+ * World‑class, Odoo‑style module picker with polished visuals.
+ * - Top bar “Start free” jumps to signup if any modules selected, else scrolls to #apps
+ * - Module card uses single Add → ✓ Selected toggle (no checkbox inside the card)
  * - Sticky selection bar shows count + chosen chips + CTA
  * - All previous APIs and fallbacks preserved
  */
@@ -104,7 +103,10 @@ function PriceCard({ name, m, y, features, billing, highlight = false }) {
           <li key={f}>✓ {f}</li>
         ))}
       </ul>
-      <Button className="mt-4" onClick={() => document.querySelector("#start")?.scrollIntoView({ behavior: "smooth" })}>
+      <Button
+        className="mt-4"
+        onClick={() => document.querySelector("#start")?.scrollIntoView({ behavior: "smooth" })}
+      >
         Get {name}
       </Button>
     </div>
@@ -266,12 +268,7 @@ function toStrArray(x) {
     .filter(Boolean);
 }
 
-
 // ---------- Card ----------
-/* Updated PublicLanding.jsx with Add/Selected toggle button in module card */
-
-// ... (imports, config, hooks remain unchanged)
-
 function AppCard({ app, selected, onToggle, onLearnMore }) {
   return (
     <article
@@ -335,8 +332,6 @@ function AppCard({ app, selected, onToggle, onLearnMore }) {
           >
             {app.paid ? "Paid" : "Free"}
           </span>
-
-          {/* Toggle button — no Start free here */}
           <Button
             className="ml-auto"
             aria-pressed={selected ? "true" : "false"}
@@ -356,21 +351,6 @@ function AppCard({ app, selected, onToggle, onLearnMore }) {
   );
 }
 
-// In startSignup, remove modules from selection on return
-useEffect(() => {
-  if (sessionStorage.getItem("returnToModules") === "1") {
-    sessionStorage.removeItem("returnToModules");
-    try {
-      const saved = JSON.parse(sessionStorage.getItem("selectedModules") || "[]");
-      setSelected(new Set(saved));
-    } catch {}
-    setTimeout(() => goTo("#apps"), 50);
-  }
-}, []);
-
-// The rest of the component remains the same, using onToggle to handle add/remove
-
-
 // ---------- Sticky Selection Bar ----------
 function SelectionBar({ selectedIds, onRemove, onStart, allApps }) {
   if (!selectedIds.size) return null;
@@ -383,7 +363,10 @@ function SelectionBar({ selectedIds, onRemove, onStart, allApps }) {
         </div>
         <div className="hidden sm:flex flex-wrap gap-2 max-w-[52ch]">
           {chosen.slice(0, 6).map((a) => (
-            <span key={a.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border bg-white/70 dark:bg-slate-800/70">
+            <span
+              key={a.id}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border bg-white/70 dark:bg-slate-800/70"
+            >
               {a.name}
               <button
                 className="opacity-70 hover:opacity-100"
@@ -395,11 +378,16 @@ function SelectionBar({ selectedIds, onRemove, onStart, allApps }) {
             </span>
           ))}
           {selectedIds.size > 6 && (
-            <span className="text-xs text-slate-500">+{selectedIds.size - 6} more</span>
+            <span className="text-xs text-slate-500">
+              +{selectedIds.size - 6} more
+            </span>
           )}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+          <Button
+            variant="ghost"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
             Review
           </Button>
           <Button onClick={onStart}>Continue to signup</Button>
@@ -482,7 +470,8 @@ export default function PublicLanding() {
           paid: !!(m?.paid ?? m?.is_paid),
           version: m?.version || "1.0.0",
           popularity: Number(m?.popularity ?? 50) || 0,
-          updatedAt: m?.updatedAt || m?.updated_at || new Date().toISOString().slice(0, 10),
+          updatedAt:
+            m?.updatedAt || m?.updated_at || new Date().toISOString().slice(0, 10),
         };
       });
     };
@@ -494,7 +483,11 @@ export default function PublicLanding() {
     (async () => {
       try {
         console.log("modules: fetching", url);
-        const r = await fetch(url, { signal: ctrl.signal, credentials: "omit", headers: { Accept: "application/json" } });
+        const r = await fetch(url, {
+          signal: ctrl.signal,
+          credentials: "omit",
+          headers: { Accept: "application/json" },
+        });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const text = await r.text();
         let json;
@@ -508,7 +501,12 @@ export default function PublicLanding() {
         if (!cancelled) setApiModules({ loading: false, list, error: null });
       } catch (e) {
         console.warn("modules: fetch failed", e?.message || e);
-        if (!cancelled) setApiModules({ loading: false, list: [], error: e?.message || "fetch-failed" });
+        if (!cancelled)
+          setApiModules({
+            loading: false,
+            list: [],
+            error: e?.message || "fetch-failed",
+          });
       } finally {
         clearTimeout(timeout);
       }
@@ -524,9 +522,42 @@ export default function PublicLanding() {
   // Fallback APPS
   const fallbackAPPS = useMemo(
     () => [
-      { id: "crm", name: "CRM", cat: "sales", icon: "🤝", desc: "Leads & pipeline", tags: ["Leads", "Pipeline", "AI"], paid: false, version: "2.4.0", popularity: 99, updatedAt: "2025-08-01" },
-      { id: "accounting", name: "Accounting", cat: "finance", icon: "📚", desc: "Invoicing & ledger", tags: ["GST", "Reports"], paid: true, version: "4.2.0", popularity: 96, updatedAt: "2025-07-30" },
-      { id: "inventory", name: "Inventory", cat: "ops", icon: "📦", desc: "Stock & warehouses", tags: ["WMS", "Barcode"], paid: true, version: "3.1.0", popularity: 90, updatedAt: "2025-06-29" },
+      {
+        id: "crm",
+        name: "CRM",
+        cat: "sales",
+        icon: "🤝",
+        desc: "Leads & pipeline",
+        tags: ["Leads", "Pipeline", "AI"],
+        paid: false,
+        version: "2.4.0",
+        popularity: 99,
+        updatedAt: "2025-08-01",
+      },
+      {
+        id: "accounting",
+        name: "Accounting",
+        cat: "finance",
+        icon: "📚",
+        desc: "Invoicing & ledger",
+        tags: ["GST", "Reports"],
+        paid: true,
+        version: "4.2.0",
+        popularity: 96,
+        updatedAt: "2025-07-30",
+      },
+      {
+        id: "inventory",
+        name: "Inventory",
+        cat: "ops",
+        icon: "📦",
+        desc: "Stock & warehouses",
+        tags: ["WMS", "Barcode"],
+        paid: true,
+        version: "3.1.0",
+        popularity: 90,
+        updatedAt: "2025-06-29",
+      },
     ],
     []
   );
@@ -565,9 +596,12 @@ export default function PublicLanding() {
       });
     }
 
-    if (sort === "popular") list.sort((a, b) => Number(b?.popularity || 0) - Number(a?.popularity || 0));
-    if (sort === "az") list.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || "")));
-    if (sort === "newest") list.sort((a, b) => Date.parse(b?.updatedAt || 0) - Date.parse(a?.updatedAt || 0));
+    if (sort === "popular")
+      list.sort((a, b) => Number(b?.popularity || 0) - Number(a?.popularity || 0));
+    if (sort === "az")
+      list.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || "")));
+    if (sort === "newest")
+      list.sort((a, b) => Date.parse(b?.updatedAt || 0) - Date.parse(a?.updatedAt || 0));
 
     return list;
   }, [APPS, q, cat, sort, price]);
@@ -589,7 +623,9 @@ export default function PublicLanding() {
     setSelected((prev) => {
       const n = new Set(prev);
       n.has(id) ? n.delete(id) : n.add(id);
-      try { sessionStorage.setItem("selectedModules", JSON.stringify(Array.from(n))); } catch {}
+      try {
+        sessionStorage.setItem("selectedModules", JSON.stringify(Array.from(n)));
+      } catch {}
       return n;
     });
 
@@ -597,7 +633,9 @@ export default function PublicLanding() {
     setSelected((prev) => {
       const n = new Set(prev);
       n.delete(id);
-      try { sessionStorage.setItem("selectedModules", JSON.stringify(Array.from(n))); } catch {}
+      try {
+        sessionStorage.setItem("selectedModules", JSON.stringify(Array.from(n)));
+      } catch {}
       return n;
     });
 
@@ -609,7 +647,9 @@ export default function PublicLanding() {
     }
     const mods = encodeURIComponent(chosen.join(","));
     track("start_free", { modules_count: chosen.length, modules: chosen });
-    try { sessionStorage.setItem("selectedModules", JSON.stringify(chosen)); } catch {}
+    try {
+      sessionStorage.setItem("selectedModules", JSON.stringify(chosen));
+    } catch {}
     window.location.href = `${API_BASE}/api/public/start-signup?modules=${mods}&plan=free`;
   };
 
@@ -625,15 +665,28 @@ export default function PublicLanding() {
     }
   }, []);
 
-  const logoRow = ["Asteria", "NovaTech", "BluePeak", "Zenlytics", "Quanta", "Skylark", "Vertex", "Nimbus"];
+  const logoRow = [
+    "Asteria",
+    "NovaTech",
+    "BluePeak",
+    "Zenlytics",
+    "Quanta",
+    "Skylark",
+    "Vertex",
+    "Nimbus",
+  ];
 
   const debug =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("debug") === "1";
 
   return (
     <div className="relative min-h-screen">
       {/* Skip link */}
-      <a href="#apps" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:bg-white focus:text-black focus:px-3 focus:py-2 focus:rounded">
+      <a
+        href="#apps"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:bg-white focus:text-black focus:px-3 focus:py-2 focus:rounded"
+      >
         Skip to Apps
       </a>
 
@@ -642,7 +695,9 @@ export default function PublicLanding() {
 
       {/* NAV */}
       <header
-        className={`sticky top-0 z-30 backdrop-blur ${scrolled ? "shadow-sm border-slate-200 dark:border-slate-700" : "border-transparent"} border-b bg-white/70 dark:bg-slate-950/70`}
+        className={`sticky top-0 z-30 backdrop-blur ${
+          scrolled ? "shadow-sm border-slate-200 dark:border-slate-700" : "border-transparent"
+        } border-b bg-white/70 dark:bg-slate-950/70`}
         role="banner"
       >
         <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
@@ -660,9 +715,23 @@ export default function PublicLanding() {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-3" aria-label="Primary">
-            <a className="chip" href="#apps" onClick={(e) => (e.preventDefault(), goTo("#apps"))}>Apps</a>
-            <a className="chip" href="#features" onClick={(e) => (e.preventDefault(), goTo("#features"))}>Features</a>
-            <a className="chip" href="#pricing" onClick={(e) => (e.preventDefault(), goTo("#pricing"))}>Pricing</a>
+            <a className="chip" href="#apps" onClick={(e) => (e.preventDefault(), goTo("#apps"))}>
+              Apps
+            </a>
+            <a
+              className="chip"
+              href="#features"
+              onClick={(e) => (e.preventDefault(), goTo("#features"))}
+            >
+              Features
+            </a>
+            <a
+              className="chip"
+              href="#pricing"
+              onClick={(e) => (e.preventDefault(), goTo("#pricing"))}
+            >
+              Pricing
+            </a>
 
             <ThemeToggleButton />
 
@@ -689,12 +758,39 @@ export default function PublicLanding() {
       {/* Mobile menu overlay */}
       {menuOpen && (
         <>
-          <div className="fixed inset-0 z-40 md:hidden bg-black/40" onClick={() => setMenuOpen(false)} />
-          <div id="mobile-menu" role="dialog" aria-modal="true" ref={menuRef} className="fixed inset-x-0 top-16 z-50 md:hidden panel p-4 border-t border-slate-200 dark:border-slate-700">
+          <div
+            className="fixed inset-0 z-40 md:hidden bg-black/40"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div
+            id="mobile-menu"
+            role="dialog"
+            aria-modal="true"
+            ref={menuRef}
+            className="fixed inset-x-0 top-16 z-50 md:hidden panel p-4 border-t border-slate-200 dark:border-slate-700"
+          >
             <nav className="grid gap-3" aria-label="Mobile">
-              <button type="button" className="chip text-left" onClick={() => (setMenuOpen(false), goTo("#apps"))}>Apps</button>
-              <button type="button" className="chip text-left" onClick={() => (setMenuOpen(false), goTo("#features"))}>Features</button>
-              <button type="button" className="chip text-left" onClick={() => (setMenuOpen(false), goTo("#pricing"))}>Pricing</button>
+              <button
+                type="button"
+                className="chip text-left"
+                onClick={() => (setMenuOpen(false), goTo("#apps"))}
+              >
+                Apps
+              </button>
+              <button
+                type="button"
+                className="chip text-left"
+                onClick={() => (setMenuOpen(false), goTo("#features"))}
+              >
+                Features
+              </button>
+              <button
+                type="button"
+                className="chip text-left"
+                onClick={() => (setMenuOpen(false), goTo("#pricing"))}
+              >
+                Pricing
+              </button>
 
               <div className="flex items-center justify-between mt-1 px-1">
                 <span className="text-sm text-slate-600 dark:text-slate-300">Theme</span>
@@ -712,17 +808,24 @@ export default function PublicLanding() {
       {/* HERO */}
       <section className="max-w-7xl mx-auto px-5 pt-14 pb-8 grid md:grid-cols-2 gap-8 items-center">
         <div className="reveal">
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">Run your business on one AI-native platform.</h1>
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+            Run your business on one AI-native platform.
+          </h1>
           <p className="text-slate-600 dark:text-slate-300 mt-3 max-w-2xl">
-            {BRAND} brings Sales, Website, Finance, Ops, People, Support, and a no-code Studio together. Built for speed, security, and scale.
+            {BRAND} brings Sales, Website, Finance, Ops, People, Support, and a no-code Studio
+            together. Built for speed, security, and scale.
           </p>
           <div className="mt-4 flex gap-2">
             <Button onClick={() => (selected.size ? startSignup() : goTo("#apps"))}>
               Start free{selected.size ? ` (${selected.size})` : ""}
             </Button>
-            <Button variant="ghost" onClick={() => goTo("#apps")}>Browse apps</Button>
+            <Button variant="ghost" onClick={() => goTo("#apps")}>
+              Browse apps
+            </Button>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">No credit card. Cancel anytime.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            No credit card. Cancel anytime.
+          </p>
         </div>
 
         <div className="reveal">
@@ -738,10 +841,14 @@ export default function PublicLanding() {
           <div className="marquee">
             <div className="marquee-track">
               {logoRow.map((n) => (
-                <div key={n} className="text-slate-500 dark:text-slate-300 whitespace-nowrap">{n}</div>
+                <div key={n} className="text-slate-500 dark:text-slate-300 whitespace-nowrap">
+                  {n}
+                </div>
               ))}
               {logoRow.map((n) => (
-                <div key={`${n}-2`} className="text-slate-500 dark:text-slate-300 whitespace-nowrap">{n}</div>
+                <div key={`${n}-2`} className="text-slate-500 dark:text-slate-300 whitespace-nowrap">
+                  {n}
+                </div>
               ))}
             </div>
           </div>
@@ -751,9 +858,13 @@ export default function PublicLanding() {
       {/* APPS */}
       <section id="apps" className="scroll-mt-24 max-w-7xl mx-auto px-5 py-10">
         <div className="text-center mb-6 reveal">
-          <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">Apps</div>
+          <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">
+            Apps
+          </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Pick the apps you need</h2>
-          <p className="text-slate-600 dark:text-slate-300 mt-2">Install one or all — they work better together.</p>
+          <p className="text-slate-600 dark:text-slate-300 mt-2">
+            Install one or all — they work better together.
+          </p>
         </div>
 
         {/* Filters */}
@@ -778,13 +889,23 @@ export default function PublicLanding() {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔎</span>
             </div>
 
-            <select className="px-3 py-2 rounded-lg border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900" value={price} onChange={(e) => setPrice(e.target.value)} aria-label="Price filter">
+            <select
+              className="px-3 py-2 rounded-lg border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              aria-label="Price filter"
+            >
               <option value="all">All</option>
               <option value="free">Free</option>
               <option value="paid">Paid</option>
             </select>
 
-            <select className="px-3 py-2 rounded-lg border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort apps">
+            <select
+              className="px-3 py-2 rounded-lg border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              aria-label="Sort apps"
+            >
               <option value="popular">Popular</option>
               <option value="az">A–Z</option>
               <option value="newest">Newest</option>
@@ -812,15 +933,24 @@ export default function PublicLanding() {
                 selected={selected.has(app.id)}
                 onToggle={toggleSelect}
                 onLearnMore={(a) => window.alert(`More about ${a.name} coming soon`)}
-                onStartFree={() => startSignup()}
               />
             ))}
           </div>
         ) : (
           <div className="panel p-6 text-center rounded-2xl">
             <div className="text-lg font-semibold mb-2">No apps match your filters</div>
-            <p className="text-slate-600 dark:text-slate-300 mb-3">Try clearing search or switching category/price.</p>
-            <Button variant="ghost" onClick={() => { setQ(""); setCat("all"); setPrice("all"); setSort("popular"); }}>
+            <p className="text-slate-600 dark:text-slate-300 mb-3">
+              Try clearing search or switching category/price.
+            </p>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setQ("");
+                setCat("all");
+                setPrice("all");
+                setSort("popular");
+              }}
+            >
               Reset filters
             </Button>
           </div>
@@ -828,7 +958,11 @@ export default function PublicLanding() {
 
         {/* Bulk start free */}
         <div className="flex justify-center mt-5">
-          <Button onClick={() => startSignup()} disabled={selected.size === 0} title={selected.size === 0 ? "Select one or more apps above" : "Continue to signup"}>
+          <Button
+            onClick={() => startSignup()}
+            disabled={selected.size === 0}
+            title={selected.size === 0 ? "Select one or more apps above" : "Continue to signup"}
+          >
             Start free{selected.size ? ` (${selected.size})` : ""}
           </Button>
         </div>
@@ -836,7 +970,8 @@ export default function PublicLanding() {
         {/* API error hint */}
         {apiModules.error && apiModules.list.length === 0 && (
           <div className="mt-4 text-center text-sm text-amber-600 dark:text-amber-400">
-            Couldn’t reach modules API (using fallback). Check CORS/URL: <code>{API_BASE}/api/public/v1/modules</code>
+            Couldn’t reach modules API (using fallback). Check CORS/URL:{" "}
+            <code>{API_BASE}/api/public/v1/modules</code>
           </div>
         )}
       </section>
@@ -844,9 +979,13 @@ export default function PublicLanding() {
       {/* FEATURES */}
       <section id="features" className="scroll-mt-24 max-w-7xl mx-auto px-5 py-12">
         <div className="text-center mb-6 reveal">
-          <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">Why {BRAND}</div>
+          <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">
+            Why {BRAND}
+          </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Fast. Secure. AI-smart.</h2>
-          <p className="text-slate-600 dark:text-slate-300 mt-2">From first click to scale-up, it just works.</p>
+          <p className="text-slate-600 dark:text-slate-300 mt-2">
+            From first click to scale-up, it just works.
+          </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
@@ -869,15 +1008,21 @@ export default function PublicLanding() {
       {/* PRICING */}
       <section id="pricing" className="scroll-mt-24 max-w-7xl mx-auto px-5 py-14">
         <div className="text-center mb-6 reveal">
-          <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">Pricing</div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Simple pricing for every stage</h2>
+          <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">
+            Pricing
+          </div>
+        <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Simple pricing for every stage</h2>
           <p className="text-slate-600 dark:text-slate-300 mt-2">Switch billing anytime.</p>
         </div>
 
         <div className="flex justify-center gap-2 mb-6 reveal">
           <div className="panel p-1 inline-flex gap-1 rounded-2xl">
             {["monthly", "yearly"].map((v) => (
-              <Button key={v} variant={billing === v ? "primary" : "ghost"} onClick={() => setBilling(v)}>
+              <Button
+                key={v}
+                variant={billing === v ? "primary" : "ghost"}
+                onClick={() => setBilling(v)}
+              >
                 {v === "monthly" ? "Monthly" : "Yearly (save ~16%)"}
               </Button>
             ))}
@@ -885,33 +1030,82 @@ export default function PublicLanding() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <PriceCard name="Starter" m={999} y={9990} billing={billing} features={["Up to 5 users", "CRM + Website", "Email support"]} />
-          <PriceCard name="Growth" m={2999} y={29990} billing={billing} highlight features={["Up to 25 users", "AI scoring + analytics", "Priority support"]} />
-          <PriceCard name="Enterprise" m={7999} y={79990} billing={billing} features={["Unlimited users", "SSO + Audit logs", "Dedicated manager"]} />
+          <PriceCard
+            name="Starter"
+            m={999}
+            y={9990}
+            billing={billing}
+            features={["Up to 5 users", "CRM + Website", "Email support"]}
+          />
+          <PriceCard
+            name="Growth"
+            m={2999}
+            y={29990}
+            billing={billing}
+            highlight
+            features={["Up to 25 users", "AI scoring + analytics", "Priority support"]}
+          />
+          <PriceCard
+            name="Enterprise"
+            m={7999}
+            y={79990}
+            billing={billing}
+            features={["Unlimited users", "SSO + Audit logs", "Dedicated manager"]}
+          />
         </div>
       </section>
 
       {/* CTA stripe */}
-      <section id="start" className="scroll-mt-24 text-center py-12 border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white dark:border-slate-700 dark:from-cyan-300/10 dark:to-purple-500/10">
+      <section
+        id="start"
+        className="scroll-mt-24 text-center py-12 border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white dark:border-slate-700 dark:from-cyan-300/10 dark:to-purple-500/10"
+      >
         <h2 className="text-2xl sm:text-3xl font-extrabold reveal">Ready to get started?</h2>
-        <p className="text-slate-600 dark:text-slate-300 mt-1 reveal">Start free today — no credit card required.</p>
+        <p className="text-slate-600 dark:text-slate-300 mt-1 reveal">
+          Start free today — no credit card required.
+        </p>
         <div className="mt-4 flex gap-3 justify-center flex-wrap">
           <Button onClick={() => (selected.size ? startSignup() : goTo("#apps"))}>
             Start free{selected.size ? ` (${selected.size})` : ""}
           </Button>
-          <Button variant="ghost" onClick={() => goTo("#apps")}>Pick apps</Button>
+          <Button variant="ghost" onClick={() => goTo("#apps")}>
+            Pick apps
+          </Button>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer id="contact" className="scroll-mt-24 border-t border-slate-200 py-6 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400">
+      <footer
+        id="contact"
+        className="scroll-mt-24 border-t border-slate-200 py-6 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400"
+      >
         <div className="max-w-7xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>© {new Date().getFullYear()} Genius Infravision — All rights reserved.</div>
           <div className="flex gap-3 flex-wrap">
-            <a href="#privacy" onClick={(e) => (e.preventDefault(), window.alert("Privacy coming soon"))}>Privacy</a>
-            <a href="#terms" onClick={(e) => (e.preventDefault(), window.alert("Terms coming soon"))}>Terms</a>
-            <a href="#security" onClick={(e) => (e.preventDefault(), window.alert("Security coming soon"))}>Security</a>
-            <a href="#" onClick={(e) => (e.preventDefault(), window.scrollTo({ top: 0, behavior: "smooth" }))}>Back to top</a>
+            <a
+              href="#privacy"
+              onClick={(e) => (e.preventDefault(), window.alert("Privacy coming soon"))}
+            >
+              Privacy
+            </a>
+            <a
+              href="#terms"
+              onClick={(e) => (e.preventDefault(), window.alert("Terms coming soon"))}
+            >
+              Terms
+            </a>
+            <a
+              href="#security"
+              onClick={(e) => (e.preventDefault(), window.alert("Security coming soon"))}
+            >
+              Security
+            </a>
+            <a
+              href="#"
+              onClick={(e) => (e.preventDefault(), window.scrollTo({ top: 0, behavior: "smooth" }))}
+            >
+              Back to top
+            </a>
           </div>
         </div>
       </footer>
@@ -930,7 +1124,12 @@ export default function PublicLanding() {
       )}
 
       {/* Sticky selection bar */}
-      <SelectionBar selectedIds={selected} onRemove={removeSelect} onStart={startSignup} allApps={APPS} />
+      <SelectionBar
+        selectedIds={selected}
+        onRemove={removeSelect}
+        onStart={startSignup}
+        allApps={APPS}
+      />
 
       {/* tiny debug overlay */}
       {debug && (
