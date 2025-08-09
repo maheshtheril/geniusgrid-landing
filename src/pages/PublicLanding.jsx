@@ -1,3 +1,8 @@
+/* 🔧 build marker (for Render verification) */
+if (typeof window !== "undefined") {
+  window.__PUBLIC_LANDING_BUILD__ = "PL-0909C";
+  console.log("PUBLIC LANDING BUILD =", window.__PUBLIC_LANDING_BUILD__);
+}
 import { useEffect, useMemo, useState, lazy, Suspense, useRef } from "react";
 
 // ---------- Config ----------
