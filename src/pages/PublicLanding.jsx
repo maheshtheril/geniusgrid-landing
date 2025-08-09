@@ -7,8 +7,9 @@ import { useEffect, useMemo, useState, lazy, Suspense, useRef } from "react";
 
 // ---------- Config ----------
 const BRAND = "GeniusGrid";
-const LOGO_SRC = "/images/geniusgrid-logo.png"; // optional; falls back to SVG mark
-const API_BASE = import.meta.env.VITE_API_URL || "https://geniusgrid-auth-starter.onrender.com";
+const LOGO_SRC = "/images/geniusgrid-logo.png";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://geniusgrid-auth-starter.onrender.com";
 
 // ---------- Optional analytics hook ----------
 function track(event, props = {}) {
@@ -18,9 +19,42 @@ function track(event, props = {}) {
   } catch {}
 }
 
-// ---------- Small atoms ----------
+// ---------- UI Primitives ----------
+function Button({ variant = "primary", size = "md", className = "", ...props }) {
+  const base =
+    "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50";
+  const sizes = {
+    sm: "h-8 px-3 text-sm",
+    md: "h-10 px-4 text-sm",
+    lg: "h-11 px-5 text-base",
+  };
+  const variants = {
+    primary:
+      "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-60 disabled:cursor-not-allowed",
+    ghost:
+      "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-800",
+    quiet:
+      "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white",
+  };
+  return (
+    <button
+      className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
+      {...props}
+    />
+  );
+}
+
 function BrandLogo({ className = "h-16 w-16" }) {
-  if (LOGO_SRC) return <img src={LOGO_SRC} width={64} height={64} alt={BRAND} className={className} />;
+  if (LOGO_SRC)
+    return (
+      <img
+        src={LOGO_SRC}
+        width={64}
+        height={64}
+        alt={BRAND}
+        className={className}
+      />
+    );
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
       <defs>
@@ -40,7 +74,9 @@ function CategoryPill({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className={`chip ${active ? "ring-2 ring-slate-300 dark:ring-cyan-300/40" : ""}`}
+      className={`chip ${
+        active ? "ring-2 ring-slate-300 dark:ring-cyan-300/40" : ""
+      }`}
       aria-pressed={!!active}
     >
       {children}
@@ -52,7 +88,11 @@ function PriceCard({ name, m, y, features, billing, highlight = false }) {
   const price = billing === "yearly" ? y : m;
   const per = billing === "yearly" ? "/yr" : "/mo";
   return (
-    <div className={`panel p-5 card-animated reveal ${highlight ? "ring-2 ring-slate-200 dark:ring-cyan-300/30" : ""}`}>
+    <div
+      className={`panel p-5 card-animated reveal ${
+        highlight ? "ring-2 ring-slate-200 dark:ring-cyan-300/30" : ""
+      }`}
+    >
       <div className="flex items-baseline justify-between">
         <h3 className="text-lg font-semibold">{name}</h3>
         <div className="text-3xl font-extrabold">
@@ -65,153 +105,70 @@ function PriceCard({ name, m, y, features, billing, highlight = false }) {
           <li key={f}>✓ {f}</li>
         ))}
       </ul>
-      <a
-        href="#start"
-        className="btn-primary btn-shine mt-4"
-        onClick={(e) => {
-          e.preventDefault();
+      <Button
+        variant="primary"
+        className="mt-4"
+        onClick={() => {
           document.querySelector("#start")?.scrollIntoView({ behavior: "smooth" });
         }}
       >
         Get {name}
-      </a>
+      </Button>
     </div>
   );
 }
 
-function AppCard({ app, onStartFree, selectable, selected, onToggle }) {
-  const [busy, setBusy] = useState(false);
+// ---------- Theme (world‑standard placement: top‑right, before CTA) ----------
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "system";
+    return localStorage.getItem("theme") || "system";
+  });
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const systemDark =
+      window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
+    const isDark = theme === "dark" || (theme === "system" && systemDark);
+    root.classList.toggle("dark", !!isDark);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const mql = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!mql) return;
+    const handler = () => {
+      if (localStorage.getItem("theme") === "system") {
+        document.documentElement.classList.toggle("dark", mql.matches);
+      }
+    };
+    mql.addEventListener?.("change", handler);
+    return () => mql.removeEventListener?.("change", handler);
+  }, []);
+
+  return { theme, setTheme };
+}
+
+function ThemeToggleButton() {
+  const { theme, setTheme } = useTheme();
+  const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+  const icon = theme === "dark" ? "🌙" : theme === "light" ? "☀️" : "🖥️";
+  const label =
+    theme === "dark" ? "Dark" : theme === "light" ? "Light" : "System";
   return (
-    <article
-      className="
-        group relative rounded-2xl border border-slate-200/70 dark:border-slate-700/60
-        bg-white/80 dark:bg-slate-900/70
-        shadow-sm hover:shadow-lg transition-all duration-300
-        hover:-translate-y-0.5
-        overflow-hidden
-      "
-      aria-label={`${app.name || "App"} card`}
+    <Button
+      variant="ghost"
+      size="md"
+      aria-label={`Theme: ${label}. Click to switch`}
+      title={`Theme: ${label} (click to switch)`}
+      onClick={() => setTheme(next)}
     >
-      {/* subtle gradient sheen */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(1200px_600px_at_0%_-10%,rgba(99,102,241,0.06),transparent)] dark:bg-[radial-gradient(1200px_600px_at_0%_-10%,rgba(34,211,238,0.08),transparent)]" />
-
-      <div className="p-4 sm:p-5">
-        {/* header row */}
-        <div className="flex items-start gap-3">
-          {/* icon */}
-          <div
-            className="
-              h-12 w-12 rounded-xl grid place-items-center text-2xl
-              bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900
-              border border-slate-200 dark:border-slate-700
-              shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]
-              group-hover:shadow-md transition-shadow
-            "
-            aria-hidden
-          >
-            {app.icon || "🧩"}
-          </div>
-
-          {/* title + badge */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base sm:text-lg font-semibold tracking-tight truncate">
-                {app.name || "Untitled"}
-              </h3>
-              <span
-                className={`
-                  inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium
-                  ${app.paid
-                    ? "bg-purple-50 text-purple-700 border border-purple-100 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-400/20"
-                    : "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-400/20"}
-                `}
-              >
-                {app.paid ? "Paid" : "Free"}
-              </span>
-            </div>
-
-            {/* subtitle/desc (one line) */}
-            {app.desc && (
-              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300/90 line-clamp-1">
-                {app.desc}
-              </p>
-            )}
-
-            {/* tags (one-line wrap, trimmed) */}
-            {!!(app.tags && app.tags.length) && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {app.tags.slice(0, 4).map((t) => (
-                  <span
-                    key={t}
-                    className="px-2 py-0.5 rounded-lg text-[11px] border border-slate-200 text-slate-600 bg-white/70
-                               dark:border-slate-700 dark:text-slate-300 dark:bg-slate-900/70"
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* footer actions */}
-        <div className="mt-4 flex items-center gap-2">
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={() => window.alert('More details soon')}
-          >
-            Learn more
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setBusy(true);
-              setTimeout(() => setBusy(false), 700);
-            }}
-            className="btn-ghost"
-            disabled={busy}
-            aria-busy={busy}
-          >
-            {busy ? "Launching…" : "Try demo"}
-          </button>
-
-          {selectable && (
-            <button
-              type="button"
-              onClick={() => onToggle?.(app.id)}
-              className={`btn-ghost ${selected ? "ring-2 ring-slate-200 dark:ring-cyan-300/40" : ""}`}
-              aria-pressed={selected}
-              title={selected ? "Remove from selection" : "Add to selection"}
-            >
-              {selected ? "✓ Selected" : "Add"}
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => onStartFree?.([app.id])}
-            className="
-              ml-auto btn-primary btn-shine
-              shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-cyan-300/50
-            "
-          >
-            Start free
-          </button>
-
-          <div className="ml-2 text-[11px] text-slate-500 dark:text-slate-400">
-            v{app.version || "1.0.0"}
-          </div>
-        </div>
-      </div>
-    </article>
+      {icon}
+    </Button>
   );
 }
 
 // ---------- Effects ----------
-// ⬇️ FIXED: Observe reveal elements added later (after fetch) so they get `.show`
 function useRevealOnScroll(deps = []) {
   useEffect(() => {
     const io = new IntersectionObserver(
@@ -230,10 +187,8 @@ function useRevealOnScroll(deps = []) {
       root.querySelectorAll(".reveal:not(.show)").forEach((el) => io.observe(el));
     };
 
-    // Observe initial nodes
     observeNow();
 
-    // Observe nodes added later (e.g., after data fetch)
     const mo = new MutationObserver((mutations) => {
       for (const m of mutations) {
         m.addedNodes.forEach((n) => {
@@ -264,7 +219,9 @@ function useMobileMenu(aOpen, close) {
     document.body.style.overflow = "hidden";
 
     const focusables = () =>
-      menuRef.current?.querySelectorAll('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])');
+      menuRef.current?.querySelectorAll(
+        'a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])'
+      );
     const onKey = (e) => {
       if (e.key === "Escape") {
         close();
@@ -318,21 +275,122 @@ const CATEGORY_MAP = {
   helpdesk: "support",
   platform: "platform",
 };
-
 function normalizeCategory(raw) {
   const k = String(raw || "").toLowerCase().trim();
   return CATEGORY_MAP[k] || "other";
 }
-
 function toStrArray(x) {
   if (!x) return [];
   if (Array.isArray(x)) return x.map((v) => String(v ?? "").trim()).filter(Boolean);
   return String(x).split(",").map((v) => v.trim()).filter(Boolean);
 }
 
+// ---------- Card ----------
+function AppCard({ app, onStartFree, selectable, selected, onToggle }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <article
+      className="
+        group relative rounded-2xl border border-slate-200/70 dark:border-slate-700/60
+        bg-white/80 dark:bg-slate-900/70 shadow-sm hover:shadow-lg transition-all duration-300
+        hover:-translate-y-0.5 overflow-hidden reveal
+      "
+      aria-label={`${app.name || "App"} card`}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(1200px_600px_at_0%_-10%,rgba(99,102,241,0.06),transparent)] dark:bg-[radial-gradient(1200px_600px_at_0%_-10%,rgba(34,211,238,0.08),transparent)]" />
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div
+            className="
+              h-12 w-12 rounded-xl grid place-items-center text-2xl
+              bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900
+              border border-slate-200 dark:border-slate-700
+              shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] group-hover:shadow-md transition-shadow
+            "
+            aria-hidden
+          >
+            {app.icon || "🧩"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base sm:text-lg font-semibold tracking-tight truncate">
+                {app.name || "Untitled"}
+              </h3>
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium
+                ${
+                  app.paid
+                    ? "bg-purple-50 text-purple-700 border border-purple-100 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-400/20"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-400/20"
+                }`}
+              >
+                {app.paid ? "Paid" : "Free"}
+              </span>
+            </div>
+            {app.desc && (
+              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300/90 line-clamp-1">
+                {app.desc}
+              </p>
+            )}
+            {!!(app.tags && app.tags.length) && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {app.tags.slice(0, 4).map((t) => (
+                  <span
+                    key={t}
+                    className="px-2 py-0.5 rounded-lg text-[11px] border border-slate-200 text-slate-600 bg-white/70
+                               dark:border-slate-700 dark:text-slate-300 dark:bg-slate-900/70"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          <Button variant="ghost" onClick={() => window.alert("More details soon")}>
+            Learn more
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setBusy(true);
+              setTimeout(() => setBusy(false), 700);
+            }}
+            disabled={busy}
+            aria-busy={busy}
+          >
+            {busy ? "Launching…" : "Try demo"}
+          </Button>
+
+          {selectable && (
+            <Button
+              variant="ghost"
+              onClick={() => onToggle?.(app.id)}
+              aria-pressed={selected}
+              title={selected ? "Remove from selection" : "Add to selection"}
+              className={selected ? "ring-2 ring-slate-200 dark:ring-cyan-300/40" : ""}
+            >
+              {selected ? "✓ Selected" : "Add"}
+            </Button>
+          )}
+
+          <Button className="ml-auto" onClick={() => onStartFree?.([app.id])}>
+            Start free
+          </Button>
+
+          <div className="ml-2 text-[11px] text-slate-500 dark:text-slate-400">
+            v{app.version || "1.0.0"}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 // ---------- Page ----------
 export default function PublicLanding() {
-  // ensure we observe items added after fetch
   useRevealOnScroll([]);
 
   const [scrolled, setScrolled] = useState(false);
@@ -347,7 +405,11 @@ export default function PublicLanding() {
   const [price, setPrice] = useState("all");
 
   const [selected, setSelected] = useState(() => new Set());
-  const [apiModules, setApiModules] = useState({ loading: true, list: [], error: null });
+  const [apiModules, setApiModules] = useState({
+    loading: true,
+    list: [],
+    error: null,
+  });
 
   // Scroll
   useEffect(() => {
@@ -361,7 +423,7 @@ export default function PublicLanding() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Preconnect to API for faster first fetch
+  // Preconnect to API
   useEffect(() => {
     try {
       const u = new URL(API_BASE);
@@ -373,16 +435,19 @@ export default function PublicLanding() {
     } catch {}
   }, []);
 
-  // Fetch modules (versioned endpoint) and normalize
+  // Fetch modules
   useEffect(() => {
     let cancelled = false;
 
     const normalize = (data) => {
       const arr = Array.isArray(data)
         ? data
-        : Array.isArray(data?.modules) ? data.modules
-        : Array.isArray(data?.data) ? data.data
-        : Array.isArray(data?.items) ? data.items
+        : Array.isArray(data?.modules)
+        ? data.modules
+        : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.items)
+        ? data.items
         : [];
 
       return arr.map((m, idx) => {
@@ -401,7 +466,8 @@ export default function PublicLanding() {
           paid: !!(m?.paid ?? m?.is_paid),
           version: m?.version || "1.0.0",
           popularity: Number(m?.popularity ?? 50) || 0,
-          updatedAt: m?.updatedAt || m?.updated_at || new Date().toISOString().slice(0, 10),
+          updatedAt:
+            m?.updatedAt || m?.updated_at || new Date().toISOString().slice(0, 10),
         };
       });
     };
@@ -413,7 +479,11 @@ export default function PublicLanding() {
     (async () => {
       try {
         console.log("modules: fetching", url);
-        const r = await fetch(url, { signal: ctrl.signal, credentials: "omit", headers: { Accept: "application/json" } });
+        const r = await fetch(url, {
+          signal: ctrl.signal,
+          credentials: "omit",
+          headers: { Accept: "application/json" },
+        });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const text = await r.text();
         let json;
@@ -427,7 +497,12 @@ export default function PublicLanding() {
         if (!cancelled) setApiModules({ loading: false, list, error: null });
       } catch (e) {
         console.warn("modules: fetch failed", e?.message || e);
-        if (!cancelled) setApiModules({ loading: false, list: [], error: e?.message || "fetch-failed" });
+        if (!cancelled)
+          setApiModules({
+            loading: false,
+            list: [],
+            error: e?.message || "fetch-failed",
+          });
       } finally {
         clearTimeout(timeout);
       }
@@ -440,7 +515,7 @@ export default function PublicLanding() {
     };
   }, []);
 
-  // Fallback APPS if API is empty/failed
+  // Fallback APPS
   const fallbackAPPS = useMemo(
     () => [
       {
@@ -499,12 +574,13 @@ export default function PublicLanding() {
     { key: "other", label: "Other" },
   ];
 
-  // Filtering (guards)
+  // Filtered list (guards)
   const filtered = useMemo(() => {
     let list = [...APPS];
 
     if (cat !== "all") list = list.filter((a) => (a?.cat || "other") === cat);
-    if (price !== "all") list = list.filter((a) => (price === "free" ? !a?.paid : !!a?.paid));
+    if (price !== "all")
+      list = list.filter((a) => (price === "free" ? !a?.paid : !!a?.paid));
 
     if (q && q.trim()) {
       const s = q.toLowerCase();
@@ -517,9 +593,18 @@ export default function PublicLanding() {
       });
     }
 
-    if (sort === "popular") list.sort((a, b) => (Number(b?.popularity || 0) - Number(a?.popularity || 0)));
-    if (sort === "az") list.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || "")));
-    if (sort === "newest") list.sort((a, b) => Date.parse(b?.updatedAt || 0) - Date.parse(a?.updatedAt || 0));
+    if (sort === "popular")
+      list.sort(
+        (a, b) => Number(b?.popularity || 0) - Number(a?.popularity || 0)
+      );
+    if (sort === "az")
+      list.sort((a, b) =>
+        String(a?.name || "").localeCompare(String(b?.name || ""))
+      );
+    if (sort === "newest")
+      list.sort(
+        (a, b) => Date.parse(b?.updatedAt || 0) - Date.parse(a?.updatedAt || 0)
+      );
 
     return list;
   }, [APPS, q, cat, sort, price]);
@@ -558,7 +643,7 @@ export default function PublicLanding() {
     window.location.href = `${API_BASE}/api/public/start-signup?modules=${mods}&plan=free`;
   };
 
-  // If coming back from signup “Add modules”, jump to apps
+  // Return from signup “Add modules”
   useEffect(() => {
     if (sessionStorage.getItem("returnToModules") === "1") {
       sessionStorage.removeItem("returnToModules");
@@ -566,9 +651,20 @@ export default function PublicLanding() {
     }
   }, []);
 
-  const logoRow = ["Asteria", "NovaTech", "BluePeak", "Zenlytics", "Quanta", "Skylark", "Vertex", "Nimbus"];
+  const logoRow = [
+    "Asteria",
+    "NovaTech",
+    "BluePeak",
+    "Zenlytics",
+    "Quanta",
+    "Skylark",
+    "Vertex",
+    "Nimbus",
+  ];
 
-  const debug = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
+  const debug =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("debug") === "1";
 
   return (
     <div className="relative min-h-screen">
@@ -600,7 +696,9 @@ export default function PublicLanding() {
             }}
           >
             <BrandLogo />
-            <span className="brand-name text-lg font-extrabold tracking-tight">{BRAND}</span>
+            <span className="brand-name text-lg font-extrabold tracking-tight">
+              {BRAND}
+            </span>
           </a>
 
           {/* Desktop nav */}
@@ -635,9 +733,13 @@ export default function PublicLanding() {
             >
               Pricing
             </a>
-            <button type="button" className="btn-primary btn-shine" onClick={() => goTo("#apps")}>
+
+            {/* 🌙 WORLD‑STANDARD THEME TOGGLE (before CTA) */}
+            <ThemeToggleButton />
+
+            <Button onClick={() => goTo("#apps")}>
               Start free{selected.size ? ` (${selected.size})` : ""}
-            </button>
+            </Button>
           </nav>
 
           {/* Mobile burger */}
@@ -657,7 +759,10 @@ export default function PublicLanding() {
       {/* Mobile menu overlay */}
       {menuOpen && (
         <>
-          <div className="fixed inset-0 z-40 md:hidden bg-black/40" onClick={() => setMenuOpen(false)} />
+          <div
+            className="fixed inset-0 z-40 md:hidden bg-black/40"
+            onClick={() => setMenuOpen(false)}
+          />
           <div
             id="mobile-menu"
             role="dialog"
@@ -666,18 +771,39 @@ export default function PublicLanding() {
             className="fixed inset-x-0 top-16 z-50 md:hidden panel p-4 border-t border-slate-200 dark:border-slate-700"
           >
             <nav className="grid gap-3" aria-label="Mobile">
-              <button type="button" className="chip text-left" onClick={() => (setMenuOpen(false), goTo("#apps"))}>
+              <button
+                type="button"
+                className="chip text-left"
+                onClick={() => (setMenuOpen(false), goTo("#apps"))}
+              >
                 Apps
               </button>
-              <button type="button" className="chip text-left" onClick={() => (setMenuOpen(false), goTo("#features"))}>
+              <button
+                type="button"
+                className="chip text-left"
+                onClick={() => (setMenuOpen(false), goTo("#features"))}
+              >
                 Features
               </button>
-              <button type="button" className="chip text-left" onClick={() => (setMenuOpen(false), goTo("#pricing"))}>
+              <button
+                type="button"
+                className="chip text-left"
+                onClick={() => (setMenuOpen(false), goTo("#pricing"))}
+              >
                 Pricing
               </button>
-              <button type="button" className="btn-primary btn-shine" onClick={() => (setMenuOpen(false), goTo("#apps"))}>
+
+              {/* theme toggle inside mobile */}
+              <div className="flex items-center justify-between mt-1 px-1">
+                <span className="text-sm text-slate-600 dark:text-slate-300">
+                  Theme
+                </span>
+                <ThemeToggleButton />
+              </div>
+
+              <Button onClick={() => (setMenuOpen(false), goTo("#apps"))}>
                 Start free{selected.size ? ` (${selected.size})` : ""}
-              </button>
+              </Button>
             </nav>
           </div>
         </>
@@ -686,20 +812,24 @@ export default function PublicLanding() {
       {/* HERO */}
       <section className="max-w-7xl mx-auto px-5 pt-14 pb-8 grid md:grid-cols-2 gap-8 items-center">
         <div className="reveal">
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">Run your business on one AI-native platform.</h1>
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+            Run your business on one AI-native platform.
+          </h1>
           <p className="text-slate-600 dark:text-slate-300 mt-3 max-w-2xl">
-            {BRAND} brings Sales, Website, Finance, Ops, People, Support, and a no-code Studio together. Built for speed,
-            security, and scale.
+            {BRAND} brings Sales, Website, Finance, Ops, People, Support, and a
+            no-code Studio together. Built for speed, security, and scale.
           </p>
           <div className="mt-4 flex gap-2">
-            <button type="button" className="btn-primary btn-shine" onClick={() => goTo("#apps")}>
+            <Button onClick={() => goTo("#apps")}>
               Start free{selected.size ? ` (${selected.size})` : ""}
-            </button>
-            <button type="button" className="btn-ghost" onClick={() => goTo("#apps")}>
+            </Button>
+            <Button variant="ghost" onClick={() => goTo("#apps")}>
               Browse apps
-            </button>
+            </Button>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">No credit card. Cancel anytime.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            No credit card. Cancel anytime.
+          </p>
         </div>
 
         <div className="reveal">
@@ -710,17 +840,26 @@ export default function PublicLanding() {
       </section>
 
       {/* LOGO MARQUEE */}
-      <section aria-label="Trusted by" className="py-6 border-t border-slate-200 dark:border-slate-700">
+      <section
+        aria-label="Trusted by"
+        className="py-6 border-t border-slate-200 dark:border-slate-700"
+      >
         <div className="max-w-7xl mx-auto px-5">
           <div className="marquee">
             <div className="marquee-track">
               {logoRow.map((n) => (
-                <div key={n} className="text-slate-500 dark:text-slate-300 whitespace-nowrap">
+                <div
+                  key={n}
+                  className="text-slate-500 dark:text-slate-300 whitespace-nowrap"
+                >
                   {n}
                 </div>
               ))}
               {logoRow.map((n) => (
-                <div key={`${n}-2`} className="text-slate-500 dark:text-slate-300 whitespace-nowrap">
+                <div
+                  key={`${n}-2`}
+                  className="text-slate-500 dark:text-slate-300 whitespace-nowrap"
+                >
                   {n}
                 </div>
               ))}
@@ -732,22 +871,32 @@ export default function PublicLanding() {
       {/* APPS */}
       <section id="apps" className="scroll-mt-24 max-w-7xl mx-auto px-5 py-10">
         <div className="text-center mb-6 reveal">
-          <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">Apps</div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Pick the apps you need</h2>
-          <p className="text-slate-600 dark:text-slate-300 mt-2">Install one or all — they work better together.</p>
+          <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">
+            Apps
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">
+            Pick the apps you need
+          </h2>
+          <p className="text-slate-600 dark:text-slate-300 mt-2">
+            Install one or all — they work better together.
+          </p>
         </div>
 
         {/* Filters */}
         <div className="grid gap-3 mb-4">
           <div className="flex flex-wrap gap-2 justify-center reveal">
             {CATEGORIES.map((c) => (
-              <CategoryPill key={c.key} active={cat === c.key} onClick={() => setCat(c.key)}>
+              <CategoryPill
+                key={c.key}
+                active={cat === c.key}
+                onClick={() => setCat(c.key)}
+              >
                 {c.label}
               </CategoryPill>
             ))}
           </div>
 
-          <div className="panel p-3 grid gap-3 md:grid-cols-[1fr_auto_auto] items-center reveal">
+          <div className="panel p-3 md:p-4 grid gap-3 md:grid-cols-[1fr_auto_auto] items-center reveal rounded-2xl">
             <div className="relative">
               <input
                 className="w-full px-10 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:ring-4 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:focus:ring-cyan-300/40"
@@ -756,7 +905,9 @@ export default function PublicLanding() {
                 onChange={(e) => setQ(e.target.value)}
                 aria-label="Search apps"
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔎</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                🔎
+              </span>
             </div>
 
             <select
@@ -785,9 +936,9 @@ export default function PublicLanding() {
 
         {/* Apps grid */}
         {apiModules.loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="panel p-4 animate-pulse">
+              <div key={i} className="panel p-4 animate-pulse rounded-2xl">
                 <div className="h-5 w-24 bg-slate-200 dark:bg-slate-800 rounded" />
                 <div className="mt-2 h-4 w-3/4 bg-slate-200 dark:bg-slate-800 rounded" />
                 <div className="mt-6 h-8 w-28 bg-slate-200 dark:bg-slate-800 rounded" />
@@ -795,7 +946,7 @@ export default function PublicLanding() {
             ))}
           </div>
         ) : filtered.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((app) => (
               <AppCard
                 key={app.id}
@@ -808,14 +959,15 @@ export default function PublicLanding() {
             ))}
           </div>
         ) : (
-          <div className="panel p-6 text-center">
-            <div className="text-lg font-semibold mb-2">No apps match your filters</div>
+          <div className="panel p-6 text-center rounded-2xl">
+            <div className="text-lg font-semibold mb-2">
+              No apps match your filters
+            </div>
             <p className="text-slate-600 dark:text-slate-300 mb-3">
               Try clearing search or switching category/price.
             </p>
-            <button
-              type="button"
-              className="btn-ghost"
+            <Button
+              variant="ghost"
               onClick={() => {
                 setQ("");
                 setCat("all");
@@ -824,27 +976,30 @@ export default function PublicLanding() {
               }}
             >
               Reset filters
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Bulk start free */}
         <div className="flex justify-center mt-5">
-          <button
-            type="button"
-            className="btn-primary btn-shine"
+          <Button
             onClick={() => startSignup()}
             disabled={selected.size === 0}
-            title={selected.size === 0 ? "Select one or more apps above" : "Continue to signup"}
+            title={
+              selected.size === 0
+                ? "Select one or more apps above"
+                : "Continue to signup"
+            }
           >
             Start free{selected.size ? ` (${selected.size})` : ""}
-          </button>
+          </Button>
         </div>
 
         {/* API error hint */}
         {apiModules.error && apiModules.list.length === 0 && (
           <div className="mt-4 text-center text-sm text-amber-600 dark:text-amber-400">
-            Couldn’t reach modules API (using fallback). Check CORS/URL: <code>{API_BASE}/api/public/v1/modules</code>
+            Couldn’t reach modules API (using fallback). Check CORS/URL:{" "}
+            <code>{API_BASE}/api/public/v1/modules</code>
           </div>
         )}
       </section>
@@ -855,8 +1010,12 @@ export default function PublicLanding() {
           <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">
             Why {BRAND}
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Fast. Secure. AI-smart.</h2>
-          <p className="text-slate-600 dark:text-slate-300 mt-2">From first click to scale-up, it just works.</p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">
+            Fast. Secure. AI-smart.
+          </h2>
+          <p className="text-slate-600 dark:text-slate-300 mt-2">
+            From first click to scale-up, it just works.
+          </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
@@ -867,7 +1026,7 @@ export default function PublicLanding() {
             ["📊", "Built-in analytics", "Dashboards, KPIs, CSV/PDF exports, and sharing."],
             ["🌍", "Global-ready", "Multi-company, multi-currency, and localization."],
           ].map(([icon, title, text]) => (
-            <div key={title} className="panel p-4 card-animated reveal">
+            <div key={title} className="panel p-4 card-animated reveal rounded-2xl">
               <div className="text-2xl">{icon}</div>
               <h3 className="font-semibold mt-2">{title}</h3>
               <p className="text-slate-600 dark:text-slate-300/90 text-sm mt-1">{text}</p>
@@ -882,29 +1041,49 @@ export default function PublicLanding() {
           <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">
             Pricing
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Simple pricing for every stage</h2>
-          <p className="text-slate-600 dark:text-slate-300 mt-2">Switch billing anytime.</p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">
+            Simple pricing for every stage
+          </h2>
+            <p className="text-slate-600 dark:text-slate-300 mt-2">Switch billing anytime.</p>
         </div>
 
         <div className="flex justify-center gap-2 mb-6 reveal">
-          <div className="panel p-1 inline-flex gap-1">
+          <div className="panel p-1 inline-flex gap-1 rounded-2xl">
             {["monthly", "yearly"].map((v) => (
-              <button
+              <Button
                 key={v}
-                type="button"
+                variant={billing === v ? "primary" : "ghost"}
                 onClick={() => setBilling(v)}
-                className={`px-3 py-1.5 rounded-lg ${billing === v ? "btn-primary" : "btn-ghost"}`}
               >
                 {v === "monthly" ? "Monthly" : "Yearly (save ~16%)"}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <PriceCard name="Starter" m={999} y={9990} billing={billing} features={["Up to 5 users", "CRM + Website", "Email support"]} />
-          <PriceCard name="Growth" m={2999} y={29990} billing={billing} highlight features={["Up to 25 users", "AI scoring + analytics", "Priority support"]} />
-          <PriceCard name="Enterprise" m={7999} y={79990} billing={billing} features={["Unlimited users", "SSO + Audit logs", "Dedicated manager"]} />
+          <PriceCard
+            name="Starter"
+            m={999}
+            y={9990}
+            billing={billing}
+            features={["Up to 5 users", "CRM + Website", "Email support"]}
+          />
+          <PriceCard
+            name="Growth"
+            m={2999}
+            y={29990}
+            billing={billing}
+            highlight
+            features={["Up to 25 users", "AI scoring + analytics", "Priority support"]}
+          />
+          <PriceCard
+            name="Enterprise"
+            m={7999}
+            y={79990}
+            billing={billing}
+            features={["Unlimited users", "SSO + Audit logs", "Dedicated manager"]}
+          />
         </div>
       </section>
 
@@ -914,14 +1093,16 @@ export default function PublicLanding() {
         className="scroll-mt-24 text-center py-12 border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white dark:border-slate-700 dark:from-cyan-300/10 dark:to-purple-500/10"
       >
         <h2 className="text-2xl sm:text-3xl font-extrabold reveal">Ready to get started?</h2>
-        <p className="text-slate-600 dark:text-slate-300 mt-1 reveal">Start free today — no credit card required.</p>
+        <p className="text-slate-600 dark:text-slate-300 mt-1 reveal">
+          Start free today — no credit card required.
+        </p>
         <div className="mt-4 flex gap-3 justify-center flex-wrap">
-          <button type="button" className="btn-primary btn-shine" onClick={() => startSignup()}>
+          <Button onClick={() => startSignup()}>
             Start free{selected.size ? ` (${selected.size})` : ""}
-          </button>
-          <button type="button" className="btn-ghost" onClick={() => goTo("#apps")}>
+          </Button>
+          <Button variant="ghost" onClick={() => goTo("#apps")}>
             Pick apps
-          </button>
+          </Button>
         </div>
       </section>
 
