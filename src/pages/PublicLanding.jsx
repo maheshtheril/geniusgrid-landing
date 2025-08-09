@@ -217,26 +217,14 @@ export default function PublicLanding() {
     } catch {}
   }, []);
 
-  // Fetch modules
+  // Fetch modules (now using versioned endpoint; no client-side mapping)
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch(`${API_BASE}/api/public/modules`, { credentials: "omit", signal: ctrl.signal })
+    fetch(`${API_BASE}/api/public/v1/modules`, { credentials: "omit", signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data) => {
         if (!Array.isArray(data)) throw new Error("Invalid payload");
-        const norm = data.map((m) => ({
-          id: m.code,
-          name: m.name,
-          cat: (m.category || "other").toLowerCase(),
-          icon: m.icon || "🧩",
-          desc: m.description || "",
-          paid: !!m.paid,
-          version: m.version || "1.0.0",
-          updatedAt: m.updatedAt || new Date().toISOString().slice(0,10),
-          tags: m.tags || [],
-          popularity: m.popularity || 90,
-        }));
-        setApiModules({ loading: false, list: norm, error: null });
+        setApiModules({ loading: false, list: data, error: null });
       })
       .catch((err) => {
         console.warn("modules fetch failed → fallback", err?.message || err);
@@ -245,11 +233,11 @@ export default function PublicLanding() {
     return () => ctrl.abort();
   }, []);
 
-  // Fallback APPS if API is empty/failed (minimal set)
+  // Fallback APPS if API is empty/failed (minimal set; same shape as API)
   const fallbackAPPS = useMemo(() => [
-    { id: "crm", name: "CRM", cat: "sales", icon: "🤝", desc: "Track leads, manage pipelines, and close deals faster with AI scoring & next actions.", tags: ["Leads","Pipeline","AI"], paid: false, version: "2.4.0", popularity: 99, updatedAt: "2025-08-01" },
-    { id: "accounting", name: "Accounting", cat: "finance", icon: "📚", desc: "Invoices, payments, bank sync, GST/VAT, and financial reports.", tags: ["GST","Reports"], paid: true, version: "4.2.0", popularity: 96, updatedAt: "2025-07-30" },
-    { id: "website", name: "Website", cat: "website", icon: "🌐", desc: "Drag-and-drop site builder with blog, forms, and SEO tools.", tags: ["Builder","SEO"], paid: false, version: "1.3.1", popularity: 78, updatedAt: "2025-07-09" },
+    { id: "crm", name: "CRM", cat: "sales", icon: "🤝", desc: "Leads & pipeline", tags: ["Leads","Pipeline","AI"], paid: false, version: "2.4.0", popularity: 99, updatedAt: "2025-08-01" },
+    { id: "accounting", name: "Accounting", cat: "finance", icon: "📚", desc: "Invoicing & ledger", tags: ["GST","Reports"], paid: true, version: "4.2.0", popularity: 96, updatedAt: "2025-07-30" },
+    { id: "inventory", name: "Inventory", cat: "ops", icon: "📦", desc: "Stock & warehouses", tags: ["WMS","Barcode"], paid: true, version: "3.1.0", popularity: 90, updatedAt: "2025-06-29" },
   ], []);
 
   const APPS = (apiModules.list.length ? apiModules.list : fallbackAPPS);
@@ -300,6 +288,7 @@ export default function PublicLanding() {
     if (!chosen.length) { goTo("#apps"); return; }
     const mods = encodeURIComponent(chosen.join(","));
     track('start_free', { modules_count: chosen.length, modules: chosen });
+    // Keep existing non-versioned path unless you've added /v1 route for start-signup
     window.location.href = `${API_BASE}/api/public/start-signup?modules=${mods}&plan=free`;
   };
 
