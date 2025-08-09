@@ -153,19 +153,45 @@ function AppCard({ app, onStartFree, selectable, selected, onToggle }) {
 }
 
 // ---------- Effects ----------
-function useRevealOnScroll() {
+// ⬇️ FIXED: Observe reveal elements added later (after fetch) so they get `.show`
+function useRevealOnScroll(deps = []) {
   useEffect(() => {
-    const els = document.querySelectorAll(".reveal");
     const io = new IntersectionObserver(
-      (entries) =>
+      (entries) => {
         entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add("show");
-        }),
+          if (e.isIntersecting) {
+            e.target.classList.add("show");
+            io.unobserve(e.target);
+          }
+        });
+      },
       { threshold: 0.12 }
     );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+
+    const observeNow = (root = document) => {
+      root.querySelectorAll(".reveal:not(.show)").forEach((el) => io.observe(el));
+    };
+
+    // Observe initial nodes
+    observeNow();
+
+    // Observe nodes added later (e.g., after data fetch)
+    const mo = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        m.addedNodes.forEach((n) => {
+          if (n.nodeType !== 1) return;
+          if (n.matches?.(".reveal:not(.show)")) io.observe(n);
+          n.querySelectorAll?.(".reveal:not(.show)").forEach((el) => io.observe(el));
+        });
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      io.disconnect();
+      mo.disconnect();
+    };
+  }, deps);
 }
 
 // ---------- Lazy hero (perf) ----------
@@ -248,7 +274,8 @@ function toStrArray(x) {
 
 // ---------- Page ----------
 export default function PublicLanding() {
-  useRevealOnScroll();
+  // ensure we observe items added after fetch
+  useRevealOnScroll([]);
 
   const [scrolled, setScrolled] = useState(false);
   const [showTop, setShowTop] = useState(false);
@@ -414,7 +441,7 @@ export default function PublicLanding() {
     { key: "other", label: "Other" },
   ];
 
-  // Filtering (all guards added)
+  // Filtering (guards)
   const filtered = useMemo(() => {
     let list = [...APPS];
 
