@@ -20,11 +20,11 @@ function track(event, props = {}) {
 }
 
 // ---------- UI Primitives ----------
-function Button({ variant = "primary", size = "md", className = "", ...props }) {
+function Button({ variant = "primary", size = "md", className = "", children, ...props }) {
   const base =
-    "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50";
+    "inline-flex items-center justify-center rounded-lg font-medium leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50";
   const sizes = {
-    sm: "h-8 px-3 text-sm",
+    sm: "h-9 px-3 text-sm",
     md: "h-10 px-4 text-sm",
     lg: "h-11 px-5 text-base",
   };
@@ -32,7 +32,7 @@ function Button({ variant = "primary", size = "md", className = "", ...props }) 
     primary:
       "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-60 disabled:cursor-not-allowed",
     ghost:
-      "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-800",
+      "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-800",
     quiet:
       "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white",
   };
@@ -40,7 +40,9 @@ function Button({ variant = "primary", size = "md", className = "", ...props }) 
     <button
       className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
       {...props}
-    />
+    >
+      {children}
+    </button>
   );
 }
 
@@ -74,9 +76,7 @@ function CategoryPill({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className={`chip ${
-        active ? "ring-2 ring-slate-300 dark:ring-cyan-300/40" : ""
-      }`}
+      className={`chip ${active ? "ring-2 ring-slate-300 dark:ring-cyan-300/40" : ""}`}
       aria-pressed={!!active}
     >
       {children}
@@ -106,7 +106,6 @@ function PriceCard({ name, m, y, features, billing, highlight = false }) {
         ))}
       </ul>
       <Button
-        variant="primary"
         className="mt-4"
         onClick={() => {
           document.querySelector("#start")?.scrollIntoView({ behavior: "smooth" });
@@ -118,52 +117,37 @@ function PriceCard({ name, m, y, features, billing, highlight = false }) {
   );
 }
 
-// ---------- Theme (world‑standard placement: top‑right, before CTA) ----------
+// ---------- Theme (Light ↔ Dark only) ----------
 function useTheme() {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "system";
-    return localStorage.getItem("theme") || "system";
-  });
+  const getInitial = () => {
+    if (typeof window === "undefined") return "light";
+    const saved = localStorage.getItem("theme");
+    if (saved === "light" || saved === "dark") return saved;
+    return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+  };
+  const [theme, setTheme] = useState(getInitial);
 
   useEffect(() => {
     const root = document.documentElement;
-    const systemDark =
-      window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
-    const isDark = theme === "dark" || (theme === "system" && systemDark);
-    root.classList.toggle("dark", !!isDark);
+    root.classList.toggle("dark", theme === "dark");
     localStorage.setItem("theme", theme);
   }, [theme]);
-
-  useEffect(() => {
-    const mql = window.matchMedia?.("(prefers-color-scheme: dark)");
-    if (!mql) return;
-    const handler = () => {
-      if (localStorage.getItem("theme") === "system") {
-        document.documentElement.classList.toggle("dark", mql.matches);
-      }
-    };
-    mql.addEventListener?.("change", handler);
-    return () => mql.removeEventListener?.("change", handler);
-  }, []);
 
   return { theme, setTheme };
 }
 
 function ThemeToggleButton() {
   const { theme, setTheme } = useTheme();
-  const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
-  const icon = theme === "dark" ? "🌙" : theme === "light" ? "☀️" : "🖥️";
-  const label =
-    theme === "dark" ? "Dark" : theme === "light" ? "Light" : "System";
+  const isDark = theme === "dark";
   return (
     <Button
       variant="ghost"
       size="md"
-      aria-label={`Theme: ${label}. Click to switch`}
-      title={`Theme: ${label} (click to switch)`}
-      onClick={() => setTheme(next)}
+      aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
+      title={`Switch to ${isDark ? "light" : "dark"} theme`}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
     >
-      {icon}
+      {isDark ? "🌙" : "☀️"}
     </Button>
   );
 }
@@ -286,8 +270,7 @@ function toStrArray(x) {
 }
 
 // ---------- Card ----------
-function AppCard({ app, onStartFree, selectable, selected, onToggle }) {
-  const [busy, setBusy] = useState(false);
+function AppCard({ app, onStartFree, selectable, selected, onToggle, onLearnMore }) {
   return (
     <article
       className="
@@ -348,20 +331,10 @@ function AppCard({ app, onStartFree, selectable, selected, onToggle }) {
           </div>
         </div>
 
+        {/* Actions: Learn more + Add + Start free (no demo) */}
         <div className="mt-4 flex items-center gap-2">
-          <Button variant="ghost" onClick={() => window.alert("More details soon")}>
+          <Button variant="ghost" onClick={() => onLearnMore?.(app)}>
             Learn more
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setBusy(true);
-              setTimeout(() => setBusy(false), 700);
-            }}
-            disabled={busy}
-            aria-busy={busy}
-          >
-            {busy ? "Launching…" : "Try demo"}
           </Button>
 
           {selectable && (
@@ -376,7 +349,8 @@ function AppCard({ app, onStartFree, selectable, selected, onToggle }) {
             </Button>
           )}
 
-          <Button className="ml-auto" onClick={() => onStartFree?.([app.id])}>
+          {/* IMPORTANT: this now respects multi‑select via parent */}
+          <Button className="ml-auto" onClick={() => onStartFree?.()}>
             Start free
           </Button>
 
@@ -629,8 +603,8 @@ export default function PublicLanding() {
       return n;
     });
 
-  const startSignup = (ids) => {
-    const chosen = ids && ids.length ? ids : Array.from(selected);
+  const startSignup = () => {
+    const chosen = Array.from(selected);
     if (!chosen.length) {
       goTo("#apps");
       return;
@@ -734,7 +708,7 @@ export default function PublicLanding() {
               Pricing
             </a>
 
-            {/* 🌙 WORLD‑STANDARD THEME TOGGLE (before CTA) */}
+            {/* Theme toggle (single icon) */}
             <ThemeToggleButton />
 
             <Button onClick={() => goTo("#apps")}>
@@ -954,7 +928,9 @@ export default function PublicLanding() {
                 selectable
                 selected={selected.has(app.id)}
                 onToggle={toggleSelect}
-                onStartFree={(ids) => startSignup(ids)}
+                onLearnMore={(a) => window.alert(`More about ${a.name} coming soon`)}
+                // IMPORTANT: card "Start free" now respects multi-select via parent
+                onStartFree={() => startSignup()}
               />
             ))}
           </div>
