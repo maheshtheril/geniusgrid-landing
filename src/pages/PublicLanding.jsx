@@ -110,17 +110,30 @@ export default function PublicLanding() {
 
   const [scrolled, setScrolled] = useState(false);
   const [showTop, setShowTop] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); // mobile menu
 
   useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY || document.documentElement.scrollTop;
       setScrolled(y > 6);
-      setShowTop(y > 400); // show "Top" after 400px
+      setShowTop(y > 400);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Close on Esc + lock body scroll when open
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = menuOpen ? "hidden" : prev || "";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev || "";
+    };
+  }, [menuOpen]);
 
   // Pricing billing state
   const [billing, setBilling] = useState("monthly"); // "monthly" | "yearly"
@@ -136,6 +149,7 @@ export default function PublicLanding() {
       el.focus({ preventScroll: true });
       el.removeAttribute("tabindex");
     }, 250);
+    setMenuOpen(false);
   };
 
   // Catalog (Odoo-style categories)
@@ -202,7 +216,7 @@ export default function PublicLanding() {
 
       {/* NAV */}
       <header
-        className={`sticky top-0 z-20 backdrop-blur ${
+        className={`sticky top-0 z-30 backdrop-blur ${
           scrolled ? "shadow-sm border-slate-200 dark:border-slate-700" : "border-transparent"
         } border-b bg-white/70 dark:bg-slate-950/70`}
       >
@@ -215,6 +229,8 @@ export default function PublicLanding() {
             <BrandLogo />
             <span className="brand-name text-lg font-extrabold tracking-tight">{BRAND}</span>
           </a>
+
+          {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-3">
             <a className="chip" href="#apps"     onClick={(e)=>{e.preventDefault(); goToSection("#apps");}}>Apps</a>
             <a className="chip" href="#features" onClick={(e)=>{e.preventDefault(); goToSection("#features");}}>Features</a>
@@ -222,8 +238,43 @@ export default function PublicLanding() {
             <a className="btn-primary btn-shine" href="#start" onClick={(e)=>{e.preventDefault(); goToSection("#start");}}>Start free</a>
             <ThemeToggle />
           </nav>
+
+          {/* Burger (mobile) */}
+          <button
+            className="md:hidden text-2xl px-2 py-1 rounded-lg"
+            onClick={() => setMenuOpen(v => !v)}
+            aria-label="Toggle menu"
+            aria-controls="mobile-menu"
+            aria-expanded={menuOpen}
+          >
+            ☰
+          </button>
         </div>
       </header>
+
+      {/* Mobile menu overlay (outside header, fixed) */}
+      {menuOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 md:hidden bg-black/40"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div
+            id="mobile-menu"
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-x-0 top-16 z-50 md:hidden panel p-4 border-t border-slate-200 dark:border-slate-700"
+          >
+            <nav className="grid gap-3">
+              <button className="chip text-left" onClick={() => goToSection("#apps")}>Apps</button>
+              <button className="chip text-left" onClick={() => goToSection("#features")}>Features</button>
+              <button className="chip text-left" onClick={() => goToSection("#pricing")}>Pricing</button>
+              <button className="btn-primary btn-shine" onClick={() => goToSection("#start")}>Start free</button>
+              <div className="mt-2"><ThemeToggle /></div>
+            </nav>
+          </div>
+        </>
+      )}
 
       {/* HERO */}
       <section className="max-w-7xl mx-auto px-5 pt-14 pb-8 grid md:grid-cols-2 gap-8 items-center">
@@ -281,7 +332,7 @@ export default function PublicLanding() {
             ))}
           </div>
 
-        <div className="panel p-3 grid gap-3 md:grid-cols-[1fr_auto_auto] items-center reveal">
+          <div className="panel p-3 grid gap-3 md:grid-cols-[1fr_auto_auto] items-center reveal">
             <div className="relative">
               <input
                 className="w-full px-10 py-2 rounded-lg border border-slate-300 bg-white outline-none focus:ring-4 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:focus:ring-cyan-300/40"
