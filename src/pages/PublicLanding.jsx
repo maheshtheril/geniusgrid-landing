@@ -256,33 +256,57 @@ export default function PublicLanding() {
   }, []);
 
   // Fetch modules (versioned endpoint) and normalize
-  useEffect(() => {
-    const ctrl = new AbortController();
-    const url = `${API_BASE}/api/public/v1/modules`;
-    fetch(url, { credentials: "omit", signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data) => {
-        if (!Array.isArray(data)) throw new Error("Invalid payload");
-        const normalized = data.map((m) => ({
-          id: m.id || m.code,
-          name: m.name,
-          cat: m.category || m.cat || "other",
-          icon: m.icon,
-          desc: m.description || m.desc || "",
-          tags: Array.isArray(m.tags) ? m.tags : (m.tags ? String(m.tags).split(",") : []),
-          paid: !!(m.paid ?? m.is_paid),
-          version: m.version || "1.0.0",
-          popularity: m.popularity ?? 50,
-          updatedAt: m.updatedAt || m.updated_at || new Date().toISOString().slice(0, 10),
-        }));
-        setApiModules({ loading: false, list: normalized, error: null });
-      })
-      .catch((err) => {
-        console.warn("modules fetch failed → fallback", err?.message || err);
-        setApiModules({ loading: false, list: [], error: err?.message || "fetch-failed" });
-      });
-    return () => ctrl.abort();
-  }, []);
+  // Replace your current "Fetch modules" useEffect with this:
+useEffect(() => {
+  let cancelled = false;
+
+  const normalize = (data) => {
+    const arr = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.modules) ? data.modules
+      : Array.isArray(data?.data) ? data.data
+      : Array.isArray(data?.items) ? data.items
+      : [];
+    return arr.map(m => ({
+      id: m.id || m.code,
+      name: m.name,
+      cat: m.category || m.cat || "other",
+      icon: m.icon || "🧩",
+      desc: m.description || m.desc || "",
+      tags: Array.isArray(m.tags) ? m.tags : (m.tags ? String(m.tags).split(",") : []),
+      paid: !!(m.paid ?? m.is_paid),
+      version: m.version || "1.0.0",
+      popularity: m.popularity ?? 50,
+      updatedAt: m.updatedAt || m.updated_at || new Date().toISOString().slice(0,10),
+    }));
+  };
+
+  const url = `${API_BASE}/api/public/v1/modules`;
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort("timeout"), 6000);
+
+  (async () => {
+    try {
+      console.log("modules: fetching", url);
+      const r = await fetch(url, { signal: ctrl.signal, credentials: "omit" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const text = await r.text();
+      let json;
+      try { json = JSON.parse(text); } catch { throw new Error("invalid-json"); }
+      const list = normalize(json);
+      console.log("modules: received", list.length, "items");
+      if (!cancelled) setApiModules({ loading: false, list, error: null });
+    } catch (e) {
+      console.warn("modules: fetch failed", e?.message || e);
+      if (!cancelled) setApiModules({ loading: false, list: [], error: e?.message || "fetch-failed" });
+    } finally {
+      clearTimeout(timeout);
+    }
+  })();
+
+  return () => { cancelled = true; clearTimeout(timeout); ctrl.abort("cleanup"); };
+}, []);
+
 
   // Fallback APPS if API is empty/failed
   const fallbackAPPS = useMemo(
