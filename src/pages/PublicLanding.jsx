@@ -56,7 +56,8 @@ function PriceCard({ name, m, y, features, billing, highlight = false }) {
       <div className="flex items-baseline justify-between">
         <h3 className="text-lg font-semibold">{name}</h3>
         <div className="text-3xl font-extrabold">
-          ₹{price.toLocaleString("en-IN")}<span className="ml-1 text-sm text-slate-500">{per}</span>
+          ₹{Number(price || 0).toLocaleString("en-IN")}
+          <span className="ml-1 text-sm text-slate-500">{per}</span>
         </div>
       </div>
       <ul className="mt-3 text-sm space-y-1">
@@ -88,10 +89,12 @@ function AppCard({ app, onStartFree, selectable, selected, onToggle }) {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold">{app.name}</h3>
+            <h3 className="font-semibold">{app.name || "Untitled"}</h3>
             {app.paid ? <span className="badge-purple">Paid</span> : <span className="badge-muted">Free</span>}
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-300/90 mt-0.5">{app.desc}</p>
+          {app.desc ? (
+            <p className="text-sm text-slate-600 dark:text-slate-300/90 mt-0.5">{app.desc}</p>
+          ) : null}
           <div className="flex flex-wrap gap-2 mt-2">
             {(app.tags || []).map((t) => (
               <span key={t} className="badge-muted">
@@ -213,6 +216,36 @@ function useMobileMenu(aOpen, close) {
   return menuRef;
 }
 
+// ---------- Helpers: category + tag sanitize ----------
+const CATEGORY_MAP = {
+  sales: "sales",
+  crm: "sales",
+  website: "website",
+  site: "website",
+  marketing: "marketing",
+  mkt: "marketing",
+  finance: "finance",
+  accounting: "finance",
+  ops: "ops",
+  inventory: "ops",
+  people: "people",
+  hr: "people",
+  support: "support",
+  helpdesk: "support",
+  platform: "platform",
+};
+
+function normalizeCategory(raw) {
+  const k = String(raw || "").toLowerCase().trim();
+  return CATEGORY_MAP[k] || "other";
+}
+
+function toStrArray(x) {
+  if (!x) return [];
+  if (Array.isArray(x)) return x.map((v) => String(v ?? "").trim()).filter(Boolean);
+  return String(x).split(",").map((v) => v.trim()).filter(Boolean);
+}
+
 // ---------- Page ----------
 export default function PublicLanding() {
   useRevealOnScroll();
@@ -256,57 +289,71 @@ export default function PublicLanding() {
   }, []);
 
   // Fetch modules (versioned endpoint) and normalize
-  // Replace your current "Fetch modules" useEffect with this:
-useEffect(() => {
-  let cancelled = false;
+  useEffect(() => {
+    let cancelled = false;
 
-  const normalize = (data) => {
-    const arr = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.modules) ? data.modules
-      : Array.isArray(data?.data) ? data.data
-      : Array.isArray(data?.items) ? data.items
-      : [];
-    return arr.map(m => ({
-      id: m.id || m.code,
-      name: m.name,
-      cat: m.category || m.cat || "other",
-      icon: m.icon || "🧩",
-      desc: m.description || m.desc || "",
-      tags: Array.isArray(m.tags) ? m.tags : (m.tags ? String(m.tags).split(",") : []),
-      paid: !!(m.paid ?? m.is_paid),
-      version: m.version || "1.0.0",
-      popularity: m.popularity ?? 50,
-      updatedAt: m.updatedAt || m.updated_at || new Date().toISOString().slice(0,10),
-    }));
-  };
+    const normalize = (data) => {
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.modules) ? data.modules
+        : Array.isArray(data?.data) ? data.data
+        : Array.isArray(data?.items) ? data.items
+        : [];
 
-  const url = `${API_BASE}/api/public/v1/modules`;
-  const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort("timeout"), 6000);
+      return arr.map((m, idx) => {
+        const name = m?.name || m?.title || m?.code || `App ${idx + 1}`;
+        const id =
+          m?.id ||
+          m?.code ||
+          name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+        return {
+          id,
+          name,
+          cat: normalizeCategory(m?.category ?? m?.cat),
+          icon: m?.icon || "🧩",
+          desc: m?.description || m?.desc || "",
+          tags: toStrArray(m?.tags),
+          paid: !!(m?.paid ?? m?.is_paid),
+          version: m?.version || "1.0.0",
+          popularity: Number(m?.popularity ?? 50) || 0,
+          updatedAt: m?.updatedAt || m?.updated_at || new Date().toISOString().slice(0, 10),
+        };
+      });
+    };
 
-  (async () => {
-    try {
-      console.log("modules: fetching", url);
-      const r = await fetch(url, { signal: ctrl.signal, credentials: "omit" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const text = await r.text();
-      let json;
-      try { json = JSON.parse(text); } catch { throw new Error("invalid-json"); }
-      const list = normalize(json);
-      console.log("modules: received", list.length, "items");
-      if (!cancelled) setApiModules({ loading: false, list, error: null });
-    } catch (e) {
-      console.warn("modules: fetch failed", e?.message || e);
-      if (!cancelled) setApiModules({ loading: false, list: [], error: e?.message || "fetch-failed" });
-    } finally {
+    const url = `${API_BASE}/api/public/v1/modules`;
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort("timeout"), 10000);
+
+    (async () => {
+      try {
+        console.log("modules: fetching", url);
+        const r = await fetch(url, { signal: ctrl.signal, credentials: "omit", headers: { Accept: "application/json" } });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const text = await r.text();
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          throw new Error("invalid-json");
+        }
+        const list = normalize(json);
+        console.log("modules: received", list.length, "items");
+        if (!cancelled) setApiModules({ loading: false, list, error: null });
+      } catch (e) {
+        console.warn("modules: fetch failed", e?.message || e);
+        if (!cancelled) setApiModules({ loading: false, list: [], error: e?.message || "fetch-failed" });
+      } finally {
+        clearTimeout(timeout);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
       clearTimeout(timeout);
-    }
-  })();
-
-  return () => { cancelled = true; clearTimeout(timeout); ctrl.abort("cleanup"); };
-}, []);
-
+      ctrl.abort("cleanup");
+    };
+  }, []);
 
   // Fallback APPS if API is empty/failed
   const fallbackAPPS = useMemo(
@@ -367,23 +414,28 @@ useEffect(() => {
     { key: "other", label: "Other" },
   ];
 
-  // Filtering
+  // Filtering (all guards added)
   const filtered = useMemo(() => {
     let list = [...APPS];
-    if (cat !== "all") list = list.filter((a) => a.cat === cat);
-    if (price !== "all") list = list.filter((a) => (price === "free" ? !a.paid : a.paid));
-    if (q.trim()) {
+
+    if (cat !== "all") list = list.filter((a) => (a?.cat || "other") === cat);
+    if (price !== "all") list = list.filter((a) => (price === "free" ? !a?.paid : !!a?.paid));
+
+    if (q && q.trim()) {
       const s = q.toLowerCase();
-      list = list.filter(
-        (a) =>
-          a.name.toLowerCase().includes(s) ||
-          a.desc.toLowerCase().includes(s) ||
-          a.tags?.some((t) => t.toLowerCase().includes(s))
-      );
+      list = list.filter((a) => {
+        const name = String(a?.name || "").toLowerCase();
+        const desc = String(a?.desc || "").toLowerCase();
+        const tags = Array.isArray(a?.tags) ? a.tags : [];
+        const tagHit = tags.some((t) => String(t || "").toLowerCase().includes(s));
+        return name.includes(s) || desc.includes(s) || tagHit;
+      });
     }
-    if (sort === "popular") list.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
-    if (sort === "az") list.sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === "newest") list.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+
+    if (sort === "popular") list.sort((a, b) => (Number(b?.popularity || 0) - Number(a?.popularity || 0)));
+    if (sort === "az") list.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || "")));
+    if (sort === "newest") list.sort((a, b) => Date.parse(b?.updatedAt || 0) - Date.parse(a?.updatedAt || 0));
+
     return list;
   }, [APPS, q, cat, sort, price]);
 
@@ -430,6 +482,8 @@ useEffect(() => {
   }, []);
 
   const logoRow = ["Asteria", "NovaTech", "BluePeak", "Zenlytics", "Quanta", "Skylark", "Vertex", "Nimbus"];
+
+  const debug = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
 
   return (
     <div className="relative min-h-screen">
@@ -716,7 +770,7 @@ useEffect(() => {
           <div className="uppercase tracking-widest text-xs text-slate-500 dark:text-slate-300/90 font-semibold">
             Why {BRAND}
           </div>
-        <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Fast. Secure. AI-smart.</h2>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mt-1">Fast. Secure. AI-smart.</h2>
           <p className="text-slate-600 dark:text-slate-300 mt-2">From first click to scale-up, it just works.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -844,6 +898,13 @@ useEffect(() => {
         >
           ↑ Top
         </button>
+      )}
+
+      {/* tiny debug overlay */}
+      {debug && (
+        <div className="fixed bottom-2 left-2 text-xs px-2 py-1 rounded bg-black/70 text-white z-50">
+          mods:{APPS.length} filtered:{filtered.length} loading:{String(apiModules.loading)}
+        </div>
       )}
     </div>
   );
