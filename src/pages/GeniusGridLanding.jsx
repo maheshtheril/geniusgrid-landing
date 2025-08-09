@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from "react";
 /* --- atoms --- */
 function LogoMark({ className = "" }) {
   return (
-    <svg width="28" height="28" viewBox="0 0 24 24" className={className}>
+    <svg width="28" height="28" viewBox="0 0 24 24" className={className} aria-hidden="true">
       <defs>
         <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#6EE7F9" />
@@ -72,6 +72,7 @@ function FAQItem({ q, a }) {
       <button
         className="w-full text-left px-4 py-3 flex items-center justify-between"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
       >
         <span className="font-medium">{q}</span>
         <span className="text-xl">{open ? "–" : "+"}</span>
@@ -87,12 +88,12 @@ export default function GeniusGridLanding() {
   const [email, setEmail] = useState("");
   const [pricingPlan, setPricingPlan] = useState("monthly");
 
-  // NEW: modules from DB + selection (keeps your styling)
+  // modules from API + selection
   const [modules, setModules] = useState([]);
   const [selected, setSelected] = useState(new Set());
 
+  // fetch modules
   useEffect(() => {
-    // Public endpoint on your backend — no creds needed from landing
     fetch("https://geniusgrid-auth-starter.onrender.com/api/public/modules", { credentials: "omit" })
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
@@ -101,6 +102,19 @@ export default function GeniusGridLanding() {
       })
       .catch(() => setModules([]));
   }, []);
+
+  // close on Esc + lock body scroll when menu is open
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    if (menuOpen) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = prevOverflow || "";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow || "";
+    };
+  }, [menuOpen]);
 
   const featureList = useMemo(
     () => [
@@ -139,7 +153,6 @@ export default function GeniusGridLanding() {
 
   function startTrial(plan = "free") {
     const mods = encodeURIComponent(Array.from(selected).join(","));
-    // Backend creates a short-lived pre-signup code and 302 redirects to the app’s /signup
     window.location.href = `https://geniusgrid-auth-starter.onrender.com/api/public/start-signup?modules=${mods}&plan=${encodeURIComponent(
       plan
     )}`;
@@ -157,51 +170,61 @@ export default function GeniusGridLanding() {
       />
 
       {/* NAV */}
-      <header className="sticky top-0 z-20 glass h-16 flex items-center justify-between px-5">
+      <header className="sticky top-0 z-30 glass h-16 flex items-center justify-between px-5">
         <a href="#" className="flex items-center gap-2 font-extrabold">
           <LogoMark />
           <span>GeniusGrid</span>
         </a>
 
-        <nav className={`hidden md:flex items-center gap-5`}>
+        <nav className="hidden md:flex items-center gap-5">
           <a href="#features">Features</a>
           <a href="#product">Product</a>
           <a href="#modules">Modules</a>
           <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
-          <a href="#contact" className="btn ghost px-3 py-2 rounded-lg glass">
-            Contact
-          </a>
+          <a href="#contact" className="btn ghost px-3 py-2 rounded-lg glass">Contact</a>
         </nav>
 
-        <button className="md:hidden text-xl" onClick={() => setMenuOpen((v) => !v)} aria-label="Toggle menu">
+        <button
+          className="md:hidden text-xl"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Toggle menu"
+          aria-controls="mobile-menu"
+          aria-expanded={menuOpen}
+        >
           ☰
         </button>
-
-      
       </header>
-{menuOpen && (
-  <>
-    {/* backdrop to dim & close on tap */}
-    <div
-      className="fixed inset-0 z-40 md:hidden bg-black/40"
-      onClick={() => setMenuOpen(false)}
-    />
-    {/* the actual menu */}
-    <div className="fixed inset-x-0 top-16 z-50 md:hidden glass p-4 border-t border-border">
-      <nav className="grid gap-3">
-        <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
-        <a href="#product"  onClick={() => setMenuOpen(false)}>Product</a>
-        <a href="#modules"  onClick={() => setMenuOpen(false)}>Modules</a>
-        <a href="#pricing"  onClick={() => setMenuOpen(false)}>Pricing</a>
-        <a href="#faq"      onClick={() => setMenuOpen(false)}>FAQ</a>
-        <a href="#contact"  onClick={() => setMenuOpen(false)} className="px-3 py-2 rounded-lg glass text-center">
-          Contact
-        </a>
-      </nav>
-    </div>
-  </>
-)}
+
+      {/* Mobile menu (outside header, fixed) */}
+      {menuOpen && (
+        <>
+          {/* backdrop */}
+          <div
+            className="fixed inset-0 z-40 md:hidden bg-black/40"
+            onClick={() => setMenuOpen(false)}
+          />
+          {/* panel */}
+          <div
+            id="mobile-menu"
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-x-0 top-16 z-50 md:hidden glass p-4 border-t border-border"
+          >
+            <nav className="grid gap-3">
+              <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+              <a href="#product"  onClick={() => setMenuOpen(false)}>Product</a>
+              <a href="#modules"  onClick={() => setMenuOpen(false)}>Modules</a>
+              <a href="#pricing"  onClick={() => setMenuOpen(false)}>Pricing</a>
+              <a href="#faq"      onClick={() => setMenuOpen(false)}>FAQ</a>
+              <a href="#contact"  onClick={() => setMenuOpen(false)} className="px-3 py-2 rounded-lg glass text-center">
+                Contact
+              </a>
+            </nav>
+          </div>
+        </>
+      )}
+
       <main>
         {/* HERO */}
         <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-8 items-center">
@@ -303,7 +326,7 @@ export default function GeniusGridLanding() {
           </div>
         </section>
 
-        {/* MODULES (from DB, selectable) */}
+        {/* MODULES */}
         <section id="modules" className="max-w-6xl mx-auto px-5 pb-16">
           <SectionTitle
             eyebrow="Modules"
@@ -318,9 +341,7 @@ export default function GeniusGridLanding() {
                 <button
                   key={m.code}
                   onClick={() => toggleModule(m.code)}
-                  className={`glass rounded-xl p-4 shadow-lg text-left ${
-                    on ? "ring-2 ring-cyan-300/40" : ""
-                  }`}
+                  className={`glass rounded-xl p-4 shadow-lg text-left ${on ? "ring-2 ring-cyan-300/40" : ""}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-semibold">{m.name}</div>
@@ -355,7 +376,6 @@ export default function GeniusGridLanding() {
             title="Pick a plan and scale"
             desc="Switch between monthly and yearly. Annual saves ~16%."
           />
-
           <div className="flex justify-center gap-2 mb-4">
             <button
               className={`px-3 py-2 rounded-lg glass ${pricingPlan === "monthly" ? "ring-2 ring-cyan-300/40" : ""}`}
@@ -370,7 +390,6 @@ export default function GeniusGridLanding() {
               Yearly
             </button>
           </div>
-
           <div className="grid md:grid-cols-3 gap-4">
             <PriceCard
               name="Starter"
