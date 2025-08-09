@@ -266,29 +266,6 @@ function toStrArray(x) {
     .filter(Boolean);
 }
 
-// ---------- Pretty checkbox ----------
-function SelectCheckbox({ checked, onChange, label }) {
-  return (
-    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-      <span
-        role="checkbox"
-        aria-checked={checked}
-        tabIndex={0}
-        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onChange?.(!checked)}
-        onClick={() => onChange?.(!checked)}
-        className={`grid place-items-center w-5 h-5 rounded-md border transition-all ${
-          checked
-            ? "bg-indigo-600 border-indigo-600 text-white"
-            : "bg-white/90 border-slate-300 dark:bg-slate-900 dark:border-slate-700"
-        }`}
-        aria-label={label || "Select"}
-      >
-        {checked ? "✓" : ""}
-      </span>
-      {label ? <span className="text-sm">{label}</span> : null}
-    </label>
-  );
-}
 
 // ---------- Card ----------
 /* Updated PublicLanding.jsx with Add/Selected toggle button in module card */
@@ -304,25 +281,41 @@ function AppCard({ app, selected, onToggle, onLearnMore }) {
       <div className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(600px_300px_at_0%_-10%,black,transparent)] bg-[linear-gradient(120deg,rgba(99,102,241,0.10),transparent_30%),linear-gradient(240deg,rgba(34,211,238,0.10),transparent_30%)]" />
 
       <div className="absolute top-3 right-3 z-10 flex items-center gap-2 text-[11px]">
-        <span className="px-2 py-0.5 rounded-full border bg-white/70 backdrop-blur text-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:border-slate-700">{app.cat || "other"}</span>
-        <span className="px-2 py-0.5 rounded-full border bg-white/70 backdrop-blur text-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:border-slate-700">v{app.version || "1.0.0"}</span>
+        <span className="px-2 py-0.5 rounded-full border bg-white/70 backdrop-blur text-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:border-slate-700">
+          {app.cat || "other"}
+        </span>
+        <span className="px-2 py-0.5 rounded-full border bg-white/70 backdrop-blur text-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:border-slate-700">
+          v{app.version || "1.0.0"}
+        </span>
       </div>
 
       <div className="p-4 sm:p-5 relative z-0">
         <div className="flex items-start gap-3">
-          <div className="h-12 w-12 rounded-xl grid place-items-center text-2xl bg-gradient-to-br from-indigo-50 to-cyan-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] group-hover:shadow-md transition-shadow" aria-hidden>
+          <div
+            className="h-12 w-12 rounded-xl grid place-items-center text-2xl bg-gradient-to-br from-indigo-50 to-cyan-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] group-hover:shadow-md transition-shadow"
+            aria-hidden
+          >
             {app.icon || "🧩"}
           </div>
 
           <div className="flex-1 min-w-0">
-            <h3 className="text-base sm:text-lg font-semibold tracking-tight truncate">{app.name || "Untitled"}</h3>
+            <h3 className="text-base sm:text-lg font-semibold tracking-tight truncate">
+              {app.name || "Untitled"}
+            </h3>
             {app.desc && (
-              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300/90 line-clamp-2">{app.desc}</p>
+              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300/90 line-clamp-2">
+                {app.desc}
+              </p>
             )}
             {!!(app.tags && app.tags.length) && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {app.tags.slice(0, 5).map((t) => (
-                  <span key={t} className="px-2 py-0.5 rounded-lg text-[11px] border border-slate-200 text-slate-600 bg-white/70 dark:border-slate-700 dark:text-slate-300 dark:bg-slate-900/70">{t}</span>
+                  <span
+                    key={t}
+                    className="px-2 py-0.5 rounded-lg text-[11px] border border-slate-200 text-slate-600 bg-white/70 dark:border-slate-700 dark:text-slate-300 dark:bg-slate-900/70"
+                  >
+                    {t}
+                  </span>
                 ))}
               </div>
             )}
@@ -330,15 +323,35 @@ function AppCard({ app, selected, onToggle, onLearnMore }) {
         </div>
 
         <div className="mt-4 flex items-center gap-2">
-          <Button variant="ghost" onClick={() => onLearnMore?.(app)}>Learn more</Button>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${app.paid ? "bg-purple-50 text-purple-700 border border-purple-100 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-400/20" : "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-400/20"}`}>{app.paid ? "Paid" : "Free"}</span>
-          <Button className="ml-auto" onClick={() => onToggle?.(app.id)}>
+          <Button variant="ghost" onClick={() => onLearnMore?.(app)}>
+            Learn more
+          </Button>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
+              app.paid
+                ? "bg-purple-50 text-purple-700 border border-purple-100 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-400/20"
+                : "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-400/20"
+            }`}
+          >
+            {app.paid ? "Paid" : "Free"}
+          </span>
+
+          {/* Toggle button — no Start free here */}
+          <Button
+            className="ml-auto"
+            aria-pressed={selected ? "true" : "false"}
+            onClick={() => onToggle?.(app.id)}
+          >
             {selected ? "✓ Selected" : "Add"}
           </Button>
         </div>
       </div>
 
-      <div className={`absolute inset-0 rounded-2xl pointer-events-none transition-all ${selected ? "ring-2 ring-indigo-400/70 dark:ring-cyan-300/50" : "ring-0"}`} />
+      <div
+        className={`absolute inset-0 rounded-2xl pointer-events-none transition-all ${
+          selected ? "ring-2 ring-indigo-400/70 dark:ring-cyan-300/50" : "ring-0"
+        }`}
+      />
     </article>
   );
 }
